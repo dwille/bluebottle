@@ -465,7 +465,10 @@ int parts_init(void)
     }
 
     // initialize Stokes number
-    parts[i].St = 0.;
+    for (j = 0; j < NCONTACT; j++) {
+      parts[i].St[j] = -1.;  // real
+      parts[i].St_j[j] = -1; // int
+    }
   }
 
   // allocate Lamb's coefficients

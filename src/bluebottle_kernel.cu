@@ -2472,7 +2472,8 @@ __global__ void bin_start(int *binStart, int *binEnd, int *partBin, int nparts)
 
 __global__ void collision_parts(part_struct *parts, int nparts,
   dom_struct *dom, real eps, real mu, BC bc, int *binStart, int *binEnd,
-  int *partBin, int *partInd, dom_struct *binDom, int interactionLength)
+  int *partBin, int *partInd, dom_struct *binDom, int interactionLength,
+  real rho_f, real nu)
 {
   int index = threadIdx.x + blockIdx.x*blockDim.x;
 
@@ -2580,6 +2581,13 @@ __global__ void collision_parts(part_struct *parts, int nparts,
 
                 real xi = parts[i].x;
                 real xj = parts[j].x;
+
+                int currSt_j = -1;
+                int isSet = -1;
+                int isJ = 0;
+                int k_isJ;
+                real currSt = -1.;
+
                 // check for neighbors across the domain when using periodic
                 // boundaries
                 rx = xi - xj;
@@ -2724,6 +2732,18 @@ __global__ void collision_parts(part_struct *parts, int nparts,
                   Lox += -8.*PI*mu*ai*ai*ai*omegax*2.*B/(5.*opB)*lnah;
                   Loy += -8.*PI*mu*ai*ai*ai*omegay*2.*B/(5.*opB)*lnah;
                   Loz += -8.*PI*mu*ai*ai*ai*omegaz*2.*B/(5.*opB)*lnah;
+
+                  // if h < hN and h > 0
+                  // set the next empty St_j equal to j and St = -1
+                  // we know it's empty if St_j[k] == -1
+                  for (int k = 0; k < NCONTACT; k++) {
+                    currSt_j = parts[i].St_j[k];
+                    currSt = parts[i].St[k];
+                    isSet = (currSt_j != -1);
+
+                    parts[i].St_j[k] = isSet*currSt_j + !isSet*j;
+                    parts[i].St[k] = ((real) isSet)*currSt - (real) !isSet;
+                  }
                 } else {
                   ah = 0;
                   lnah = 0;
@@ -2736,26 +2756,66 @@ __global__ void collision_parts(part_struct *parts, int nparts,
                   Lox = 0;
                   Loy = 0;
                   Loz = 0;
+
+                  // if h > hN and we've already set something for this j
+                  // reset this entry, we don't care anymore
+                  // if its not j, though, don't do anything
+                  for (int k = 0; k < NCONTACT; k++) {
+                    currSt_j = parts[i].St_j[k];
+                    currSt = parts[i].St[k];
+                    isJ = (currSt_j == j);
+
+                    parts[i].St_j[k] = -isJ + !isJ*currSt_j ;
+                    parts[i].St[k] = (real) -isJ + ((real) !isJ)*currSt;
+                  }
                 }
 
-          /** TODO implement variable alpha damping as is done for the walls **/
                 if(h < 0) {
+
+                  // if this is the first time step (st == -1) with a contact,
+                  // set St
+                  // otherwise, use St set at the beginning of the contact
+
+                  k_isJ = -1;  // value of k where current j is stored
+
+                  for (int k = 0; k < NCONTACT; k++) {
+                    currSt_j = parts[i].St_j[k];
+                    isJ = (currSt_j == j);
+
+                    k_isJ = k*isJ + k_isJ*!isJ;
+                  } 
+
+                  if (parts[i].St[k_isJ] == -1) {
+                    parts[i].St[k_isJ] =
+                      (1./9.*parts[i].rho/rho_f*2.*parts[i].r*fabs(udotn))/nu;
+                  }
+                  
+                  currSt = parts[i].St[k_isJ];
+                  
                   ah = 0;
                   lnah = 0;
+
+                  // estimate alpha as in wall collision model
+                  real xcx0 = parts[i].l_rough/(2.*parts[i].r)*100.;
+                  real e =parts[i].e_dry + (1. + parts[i].e_dry)/currSt
+                    *log(xcx0);
+                  e = e*((real) (e < 0));
+                  real alpha = -2.263*pow(e, 0.3948) + 2.22;
+
                   real denom = 0.75*((1-parts[i].sigma*parts[i].sigma)
                     /parts[i].E
                     + (1-parts[j].sigma*parts[j].sigma)/parts[j].E)
                     *sqrt(1./ai + 1./aj);
                     
                   Fnx = (sqrt(-h*h*h)/denom
-                    - sqrt(4./3.*PI*ai*ai*ai*parts[i].rho/denom*sqrt(-h))*udotn)
-                    *nx;
+                    - alpha*sqrt(4./3.*PI*ai*ai*ai*parts[i].rho/denom*sqrt(-h))
+                    *udotn)*nx;
                   Fny = (sqrt(-h*h*h)/denom
-                    - sqrt(4./3.*PI*ai*ai*ai*parts[i].rho/denom*sqrt(-h))*udotn)
-                    *ny;
+                    - alpha*sqrt(4./3.*PI*ai*ai*ai*parts[i].rho/denom*sqrt(-h))
+                    *udotn)*ny;
                   Fnz = (sqrt(-h*h*h)/denom
-                    - sqrt(4./3.*PI*ai*ai*ai*parts[i].rho/denom*sqrt(-h))*udotn)
-                    *nz;
+                    - alpha*sqrt(4./3.*PI*ai*ai*ai*parts[i].rho/denom*sqrt(-h))
+                    *udotn)*nz;
 
                 }
 
@@ -2797,9 +2857,20 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
     real Fnx, Fny, Fnz, Ftx, Fty, Ftz;
     real Lox, Loy, Loz;
 
+    int currSt_j = -1;
+    int isSet = -1;
+    int isJ;
+    int k_isJ;
+    real currSt = -1.;
+    int j;  // so as to use the same algorithm as in collision_parts
+            // EAST/WEST: j == -2
+            // NORTH/SOUTH: j == -3
+            // TOP/BOTTOM: j == -4
+
     // west wall
     dx = fabs(parts[i].x - dom->xs);
     h = dx - ai;
+    j = -2;
     if(h < hN && h > 0) {
       Un = parts[i].u - bc.uWD;
       if(h < eps*parts[i].r) h = eps*parts[i].r;
@@ -2838,16 +2909,45 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
       parts[i].iLy += (bc.uW == DIRICHLET) * Loy;
       parts[i].iLz += (bc.uW == DIRICHLET) * Loz;
 
-      // if no contact, mark with a -1
-      parts[i].St = -1.;
+      // if no contact, mark with a -1 and set next empty index to j
+      for (int k = 0; k < NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        currSt = parts[i].St[k];
+        isSet = (currSt_j != -1);
+
+        parts[i].St_j[k] = isSet*currSt_j + !isSet*j;
+        parts[i].St[k] = ((real) isSet)*currSt - (real) !isSet;
+      }
+    } else {
+      // if it goes out of interaction range, clear
+      for (int k = 0; k < NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        currSt = parts[i].St[k];
+        isJ = (currSt_j == j);
+
+        parts[i].St_j[k] = -isJ + !isJ*currSt_j ;
+        parts[i].St[k] = -((real) isJ) + ((real) !isJ)*currSt;
+      }
     }
     if(h < 0) {
       Un = parts[i].u - bc.uWD;
       // if this is the first time step with contact, set St
       // otherwise, use St that was set at the beginning of the contact
-      if(parts[i].St == -1.) {
-        parts[i].St = 1./9.*parts[i].rho/rhof*2.*parts[i].r*abs(Un)/nu;
+      k_isJ = -1;
+
+      for (int k = 0; k <  NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        isJ = (currSt_j == j);
+
+        k_isJ = k*isJ + k_isJ*!isJ;
       }
+
+      if(parts[i].St[k_isJ] == -1.) {
+        parts[i].St[k_isJ] = 1./9.*parts[i].rho/rhof*2.*parts[i].r*fabs(Un)/nu;
+      }
+
+      currSt = parts[i].St[k_isJ];
+
       lnah = 0;
       /** for now, use particle material as wall materal in second V term **/
       real k = 4./3./((1.-parts[i].sigma*parts[i].sigma)/parts[i].E
@@ -2855,8 +2955,9 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
 
       // estimate alpha according to Tsuji (1991) p. 32 and Joseph (2000) p. 344
       real xcx0 = parts[i].l_rough/(2.*parts[i].r)*100.;
-      real e = parts[i].e_dry + (1.+parts[i].e_dry)/parts[i].St*log(xcx0);
-      if(e < 0) e = 0;
+      real e = parts[i].e_dry + (1.+parts[i].e_dry)/currSt*log(xcx0);
+      //if(e < 0) e = 0;
+      e = e*((real) (e < 0));
       real alpha = -2.263*pow(e,0.3948)+2.22;
       //real alpha = 1.0;
 
@@ -2867,6 +2968,7 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
     // east wall
     dx = fabs(parts[i].x - dom->xe);
     h = dx - ai;
+    j = -2;
     if(h < hN && h > 0) {
       if(h < eps*parts[i].r) h = eps*parts[i].r;
       ah = ai/h - ai/hN;
@@ -2906,16 +3008,45 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
       parts[i].iLy += (bc.uE == DIRICHLET) * Loy;
       parts[i].iLz += (bc.uE == DIRICHLET) * Loz;
 
-      // if no contact, mark with a -1
-      parts[i].St = -1.;
+      // if no contact, mark with a -1 and set next empty index to j
+      for (int k = 0; k < NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        currSt = parts[i].St[k];
+        isSet = (currSt_j != -1);
+
+        parts[i].St_j[k] = isSet*currSt_j + !isSet*j;
+        parts[i].St[k] = ((real) isSet)*currSt - !isSet;
+      }
+    } else {
+      // if it goes out of interaction range, clear
+      for (int k = 0; k < NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        currSt = parts[i].St[k];
+        isJ = (currSt_j == j);
+
+        parts[i].St_j[k] = -isJ + !isJ*currSt_j ;
+        parts[i].St[k] = -isJ + ((real) !isJ)*currSt;
+      }
     } 
     if(h < 0) {
       Un = parts[i].u - bc.uED;
       // if this is the first time step with contact, set St
       // otherwise, use St that was set at the beginning of the contact
-      if(parts[i].St == -1.) {
-        parts[i].St = 1./9.*parts[i].rho/rhof*2.*parts[i].r*abs(Un)/nu;
+      k_isJ = -1;
+
+      for (int k = 0; k <  NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        isJ = (currSt_j == j);
+
+        k_isJ = k*isJ + k_isJ*!isJ;
       }
+
+      if(parts[i].St[k_isJ] == -1.) {
+        parts[i].St[k_isJ] = 1./9.*parts[i].rho/rhof*2.*parts[i].r*fabs(Un)/nu;
+      }
+
+      currSt = parts[i].St[k_isJ];
+
       lnah = 0;
       /** for now, use particle material as wall materal in second V term **/
       real denom = 0.75*((1.-parts[i].sigma*parts[i].sigma)/parts[i].E
@@ -2923,8 +3054,9 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
 
       // estimate alpha according to Tsuji (1991) p. 32 and Joseph (2000) p. 344
       real xcx0 = parts[i].l_rough/(2.*parts[i].r)*100.;
-      real e = parts[i].e_dry + (1.+parts[i].e_dry)/parts[i].St*log(xcx0);
-      if(e < 0) e = 0;
+      real e = parts[i].e_dry + (1.+parts[i].e_dry)/currSt*log(xcx0);
+      //if(e < 0) e = 0;
+      e = e*((real) (e < 0));
       real alpha = -2.263*pow(e,0.3948)+2.22;
       //real alpha = 1.0;
 
@@ -2935,6 +3067,7 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
     // south wall
     dy = fabs(parts[i].y - dom->ys);
     h = dy - ai;
+    j = -3;
     if(h < hN && h > 0) {
       if(h < eps*parts[i].r) h = eps*parts[i].r;
       ah = ai/h - ai/hN;
@@ -2975,15 +3108,44 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
       parts[i].iLz += (bc.vS == DIRICHLET) * Loz;
 
       // if no contact, mark with a -1
-      parts[i].St = -1.;
+      for (int k = 0; k < NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        currSt = parts[i].St[k];
+        isSet = (currSt_j != -1);
+
+        parts[i].St_j[k] = isSet*currSt_j + !isSet*j;
+        parts[i].St[k] = ((real) isSet)*currSt - !isSet;
+      }
+    } else {
+      // if it goes out of interaction range, clear
+      for (int k = 0; k < NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        currSt = parts[i].St[k];
+        isJ = (currSt_j == j);
+
+        parts[i].St_j[k] = -isJ + !isJ*currSt_j ;
+        parts[i].St[k] = -isJ + ((real) !isJ)*currSt;
+      }
     }
     if(h < 0) {
       Un = parts[i].v - bc.vSD;
       // if this is the first time step with contact, set St
       // otherwise, use St that was set at the beginning of the contact
-      if(parts[i].St == -1.) {
-        parts[i].St = 1./9.*parts[i].rho/rhof*2.*parts[i].r*abs(Un)/nu;
+      k_isJ = -1;
+
+      for (int k = 0; k <  NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        isJ = (currSt_j == j);
+
+        k_isJ = k*isJ + k_isJ*!isJ;
       }
+
+      if(parts[i].St[k_isJ] == -1.) {
+        parts[i].St[k_isJ] = 1./9.*parts[i].rho/rhof*2.*parts[i].r*fabs(Un)/nu;
+      }
+
+      currSt = parts[i].St[k_isJ];
+
       lnah = 0;
       /** for now, use particle material as wall materal in second V term **/
       real denom = 0.75*((1.-parts[i].sigma*parts[i].sigma)/parts[i].E
@@ -2991,8 +3153,9 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
 
       // estimate alpha according to Tsuji (1991) p. 32 and Joseph (2000) p. 344
       real xcx0 = parts[i].l_rough/(2.*parts[i].r)*100.;
-      real e = parts[i].e_dry + (1.+parts[i].e_dry)/parts[i].St*log(xcx0);
-      if(e < 0) e = 0;
+      real e = parts[i].e_dry + (1.+parts[i].e_dry)/currSt*log(xcx0);
+      //if(e < 0) e = 0;
+      e = e*((real) (e < 0));
       real alpha = -2.263*pow(e,0.3948)+2.22;
       //real alpha = 1.0;
 
@@ -3003,6 +3166,7 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
     // north wall
     dy = fabs(parts[i].y - dom->ye);
     h = dy - ai;
+    j = -3;
     if(h < hN && h > 0) {
       if(h < eps*parts[i].r) h = eps*parts[i].r;
       ah = ai/h - ai/hN;
@@ -3043,15 +3207,44 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
       parts[i].iLz += (bc.vN == DIRICHLET) * Loz;
 
       // if no contact, mark with a -1
-      parts[i].St = -1.;
+      for (int k = 0; k < NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        currSt = parts[i].St[k];
+        isSet = (currSt_j != -1);
+
+        parts[i].St_j[k] = isSet*currSt_j + !isSet*j;
+        parts[i].St[k] = ((real) isSet)*currSt - !isSet;
+      }
+    } else {
+      // if it goes out of interaction range, clear
+      for (int k = 0; k < NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        currSt = parts[i].St[k];
+        isJ = (currSt_j == j);
+
+        parts[i].St_j[k] = -isJ + !isJ*currSt_j ;
+        parts[i].St[k] = -isJ + ((real) !isJ)*currSt;
+      }
     }
     if(h < 0) {
       Un = parts[i].v - bc.vND;
       // if this is the first time step with contact, set St
       // otherwise, use St that was set at the beginning of the contact
-      if(parts[i].St == -1.) {
-        parts[i].St = 1./9.*parts[i].rho/rhof*2.*parts[i].r*abs(Un)/nu;
+      k_isJ = -1;
+
+      for (int k = 0; k <  NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        isJ = (currSt_j == j);
+
+        k_isJ = k*isJ + k_isJ*!isJ;
       }
+
+      if(parts[i].St[k_isJ] == -1.) {
+        parts[i].St[k_isJ] = 1./9.*parts[i].rho/rhof*2.*parts[i].r*fabs(Un)/nu;
+      }
+
+      currSt = parts[i].St[k_isJ];
+
       lnah = 0;
       /** for now, use particle material as wall materal in second V term **/
       real denom = 0.75*((1.-parts[i].sigma*parts[i].sigma)/parts[i].E
@@ -3059,8 +3252,9 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
 
       // estimate alpha according to Tsuji (1991) p. 32 and Joseph (2000) p. 344
       real xcx0 = parts[i].l_rough/(2.*parts[i].r)*100.;
-      real e = parts[i].e_dry + (1.+parts[i].e_dry)/parts[i].St*log(xcx0);
-      if(e < 0) e = 0;
+      real e = parts[i].e_dry + (1.+parts[i].e_dry)/currSt*log(xcx0);
+      //if(e < 0) e = 0;
+      e = e*((real) (e < 0));
       real alpha = -2.263*pow(e,0.3948)+2.22;
       //real alpha = 1.0;
 
@@ -3071,6 +3265,7 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
     // bottom wall
     dz = fabs(parts[i].z - dom->zs);
     h = dz - ai;
+    j = -4;
     if(h < hN && h > 0) {
       if(h < eps*parts[i].r) h = eps*parts[i].r;
       ah = ai/h - ai/hN;
@@ -3111,15 +3306,44 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
       parts[i].iLz += (bc.wB == DIRICHLET) * Loz;
 
       // if no contact, mark with a -1
-      parts[i].St = -1.;
+      for (int k = 0; k < NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        currSt = parts[i].St[k];
+        isSet = (currSt_j != -1);
+        
+        parts[i].St_j[k] = isSet*currSt_j + !isSet*j;
+        parts[i].St[k] = ((real) isSet)*currSt - !isSet;
+      }
+    } else {
+      // if it goes out of interaction range, clear
+      for (int k = 0; k < NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        currSt = parts[i].St[k];
+        isJ = (currSt_j == j);
+
+        parts[i].St_j[k] = -isJ + !isJ*currSt_j ;
+        parts[i].St[k] = -isJ + ((real) !isJ)*currSt;
+      }
     }
     if(h < 0) {
       Un = parts[i].w - bc.wBD;
       // if this is the first time step with contact, set St
       // otherwise, use St that was set at the beginning of the contact
-      if(parts[i].St == -1.) {
-        parts[i].St = 1./9.*parts[i].rho/rhof*2.*parts[i].r*abs(Un)/nu;
+      k_isJ = -1;
+
+      for (int k = 0; k <  NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        isJ = (currSt_j == j);
+
+        k_isJ = k*isJ + k_isJ*!isJ;
       }
+
+      if(parts[i].St[k_isJ] == -1.) {
+        parts[i].St[k_isJ] = 1./9.*parts[i].rho/rhof*2.*parts[i].r*fabs(Un)/nu;
+      }
+
+      currSt = parts[i].St[k_isJ];
+
       lnah = 0;
       // for now, use particle material as wall materal in second V term //
       real denom = 0.75*((1.-parts[i].sigma*parts[i].sigma)/parts[i].E
@@ -3127,8 +3351,9 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
 
       // estimate alpha according to Tsuji (1991) p. 32 and Joseph (2000) p. 344
       real xcx0 = parts[i].l_rough/(2.*parts[i].r)*100.;
-      real e = parts[i].e_dry + (1.+parts[i].e_dry)/parts[i].St*log(xcx0);
-      if(e < 0) e = 0;
+      real e = parts[i].e_dry + (1.+parts[i].e_dry)/currSt*log(xcx0);
+      //if(e < 0) e = 0;
+      e = e*((real) (e < 0));
       real alpha = -2.263*pow(e,0.3948)+2.22;
       //real alpha = 1.0;
 
@@ -3139,6 +3364,7 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
     // top wall
     dz = fabs(parts[i].z - dom->ze);
     h = dz - ai;
+    j = -4;
     if(h < hN && h > 0) {
       if(h < eps*parts[i].r) h = eps*parts[i].r;
       ah = ai/h - ai/hN;
@@ -3179,15 +3405,44 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
       parts[i].iLz += (bc.wT == DIRICHLET) * Loz;
 
       // if no contact, mark with a -1
-      parts[i].St = -1.;
+      for (int k = 0; k < NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        currSt = parts[i].St[k];
+        isSet = (currSt_j != -1);
+
+        parts[i].St_j[k] = isSet*currSt_j + !isSet*j;
+        parts[i].St[k] = ((real) isSet)*currSt - !isSet;
+      }
+    } else {
+      // if it goes out of interaction range, clear
+      for (int k = 0; k < NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        currSt = parts[i].St[k];
+        isJ = (currSt_j == j);
+
+        parts[i].St_j[k] = -isJ + !isJ*currSt_j ;
+        parts[i].St[k] = -isJ + ((real) !isJ)*currSt;
+      }
     }
     if(h < 0) {
       Un = parts[i].w - bc.wTD;
       // if this is the first time step with contact, set St
       // otherwise, use St that was set at the beginning of the contact
-      if(parts[i].St == -1.) {
-        parts[i].St = 1./9.*parts[i].rho/rhof*2.*parts[i].r*abs(Un)/nu;
+      k_isJ = -1;
+
+      for (int k = 0; k <  NCONTACT; k++) {
+        currSt_j = parts[i].St_j[k];
+        isJ = (currSt_j == j);
+
+        k_isJ = k*isJ + k_isJ*!isJ;
       }
+
+      if(parts[i].St[k_isJ] == -1.) {
+        parts[i].St[k_isJ] = 1./9.*parts[i].rho/rhof*2.*parts[i].r*fabs(Un)/nu;
+      }
+
+      currSt = parts[i].St[k_isJ];
+
       lnah = 0;
       // for now, use particle material as wall materal in second V term //
       real denom = 0.75*((1.-parts[i].sigma*parts[i].sigma)/parts[i].E
@@ -3195,8 +3450,9 @@ __global__ void collision_walls(dom_struct *dom, part_struct *parts,
 
       // estimate alpha according to Tsuji (1991) p. 32 and Joseph (2000) p. 344
       real xcx0 = parts[i].l_rough/(2.*parts[i].r)*100.;
-      real e = parts[i].e_dry + (1.+parts[i].e_dry)/parts[i].St*log(xcx0);
-      if(e < 0) e = 0;
+      real e = parts[i].e_dry + (1.+parts[i].e_dry)/currSt*log(xcx0);
+      //if(e < 0) e = 0;
+      e = e*((real) (e < 0));
       real alpha = -2.263*pow(e,0.3948)+2.22;
       //real alpha = 1.0;
 

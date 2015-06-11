@@ -45,6 +45,19 @@
  ******
  */
 
+/****d* particle/NCONTACT
+ * NAME
+ *  NNODES
+ * TYPE
+ */
+#define NCONTACT 12
+/*
+ * PURPOSE
+ *  Define the number of nodes used for the Lebedev quadrature scheme.
+ ******
+ */
+
+
 /****v* particle/phase
  * NAME
  *  phase
@@ -307,7 +320,8 @@ typedef struct part_struct {
   int translating;
   int rotating;
   int bin;
-  real St;
+  real St[NCONTACT];
+  int St_j[NCONTACT];
   real e_dry;
   real l_rough;
 } part_struct;
@@ -385,7 +399,8 @@ typedef struct part_struct {
  *  * bin -- which bin the particle resides in
  *  * e_dry -- dry coefficient of restitution
  *  * l_rough -- particle surface roughness length
- *  * St -- particle-wall interaction Stokes number
+ *  * St -- particle-wall or particle wall interaction Stokes number
+ *  * St_j -- index of respective particle or wall for Stokes number calc
  ******
  */
 
