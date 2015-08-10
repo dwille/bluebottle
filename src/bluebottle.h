@@ -2856,18 +2856,10 @@ void cuda_collisions(void);
  *  seeder_read_input()
  * USAGE
  */
-void seeder_read_input(int Nx, int Ny, int Nz, double ddz, double bias, 
-  int nperturb);
+void seeder_read_input(void);
 /*
   * FUNCTION
   *   Read parts.config for seeder initialization
-  * ARGUMENTS
-  *  * Nx -- number of particles in the x direction
-  *  * Ny -- number of particles in the y direction
-  *  * Nz -- number of particles in the z direction
-  *  * ddz -- distance b/t top of one layer and middle of next
-  *  * bias -- perturbation amount
-  *  * nperturb -- number of times to perturb
   ******
   */
 
@@ -2919,10 +2911,11 @@ void seeder(int nparts, real loa, real a, real aFx, real aFy, real aFz,
  *  seeder_array()
  * USAGE
  */
-void seeder_array(int Nx, int Ny, int Nz, real loa, real a, real aFx, real aFy, 
-  real aFz, real aLx, real aLy, real aLz, real rho, real E, real sigma, 
-  real e_dry, real l_rough, int o, real rs_r, real spring_k, real spring_x, 
-  real spring_y, real spring_z, real spring_l, int t, int r);
+void seeder_array(int Nx, int Ny, int Nz, real dx, real dy, real dz,
+  real xs, real ys, real zs, real loa, real a, real aFx, real aFy, real aFz, 
+  real aLx, real aLy, real aLz, real rho, real E, real sigma, real e_dry, 
+  real l_rough, int o, real rs_r, real spring_k, real spring_x, real spring_y, 
+  real spring_z, real spring_l, int t, int r);
 /* FUNCTION
  *  Seed Nx*Ny*Nz particles in the domain as a regular array shape. To use this 
  *  function, run 'bluebottle -s. A new file called part_seeder_array.config 
@@ -2932,7 +2925,13 @@ void seeder_array(int Nx, int Ny, int Nz, real loa, real a, real aFx, real aFy,
  * ARGUMENTS
  *  * Nx -- particle number in x direction
  *  * Ny -- particle number in y direction
- *  * Nz -- particle number is z direction
+ *  * Nz -- particle number in z direction
+ *  * dx -- interparticle spacing in x direction
+ *  * dy -- interparticle spacing in y direction
+ *  * dz -- interparticle spacing in z direction
+ *  * xs -- starting position in x direction
+ *  * ys -- starting position in y direction
+ *  * zs -- starting position in z direction
  *  * loa -- particle interaction compact support length
  *  * a -- the radius of the particles
  *  * aFx -- particle x forcing
@@ -2963,10 +2962,12 @@ void seeder_array(int Nx, int Ny, int Nz, real loa, real a, real aFx, real aFy,
  *  seeder_hex()
  * USAGE
  */
-void seeder_hex(int Nx, int Ny, int Nz, double ddz, real loa, real a, real aFx, 
-  real aFy, real aFz, real aLx, real aLy, real aLz, real rho, real E, 
-  real sigma, real e_dry, real l_rough, int o, real rs_r, real spring_k, 
-  real spring_x, real spring_y, real spring_z, real spring_l, int t, int r);
+void seeder_hex(real xExtent, real yExtent, real zExtent, real alpha, real xs, 
+  real ys, real zs,
+  real loa, real a, real aFx, real aFy, real aFz, real aLx, real aLy, real aLz, 
+  real rho, real E, real sigma, real e_dry, real l_rough, int o, real rs_r, 
+  real spring_k, real spring_x, real spring_y, real spring_z, real spring_l, 
+  int t, int r);
 /* FUNCTION
  *  Seed Nx*Ny*Nz particles in the domain in a hex shape. To use this function, 
  *  run 'bluebottle -s. A new file called part_seeder_hex.config will be created
@@ -2974,10 +2975,13 @@ void seeder_hex(int Nx, int Ny, int Nz, double ddz, real loa, real a, real aFx,
  *  using this input file, change its name to part.config and run bluebottle 
  *  normally.
  * ARGUMENTS
- * 	Nx -- particle number in x direction
- * 	Ny -- particle number in y direction
- *  Nz -- particle number is z direction
- *	ddz -- distance from top of one layer to center of next layer
+ * 	* xExtent -- extent of hex array in x
+ * 	* yExtent -- extent of hex array in y
+ *  * zExtent -- extent of hex array in z
+ *	* alpha -- desired particle vol frac for hex
+ *  * xs -- starting position in x direction
+ *  * ys -- starting position in y direction
+ *  * zs -- starting position in z direction
  *  * loa -- particle interaction compact support length
  *  * a -- the radius of the particles
  *  * aFx -- particle x forcing
@@ -3008,7 +3012,7 @@ void seeder_hex(int Nx, int Ny, int Nz, double ddz, real loa, real a, real aFx,
  *  seeder_high_vol_random()
  * USAGE
  */
-void seeder_high_vol_random(int Nx, int Ny, int Nz, double bias, int nperturb, 
+void seeder_high_vol_random(int Nx, int Ny, int Nz, real ratio, int nperturb, 
   real loa, real a, real aFx, real aFy, real aFz, real aLx, real aLy, real aLz, 
   real rho, real E, real sigma, real e_dry, real l_rough, int o, real rs, 
   real spring_k, real spring_x, real spring_y, real spring_z, real spring_l, 
@@ -3020,11 +3024,11 @@ void seeder_high_vol_random(int Nx, int Ny, int Nz, double bias, int nperturb,
  *  simulation code will not be run. To run a simulation using this input file,
  *  change its name to part.config and run bluebottle normally.
  * ARGUMENTS
- * 	Nx - particle number in x direction
- * 	Ny - particle number in y direction
- *  Nz - particle number is z direction
- *	bias -- magnitude of pertubation
- *	nperturb -- number of pertubation times
+ * 	* Nx - particle number in x direction
+ * 	* Ny - particle number in y direction
+ *  * Nz - particle number is z direction
+ *	* ratio -- magnitude of pertubation
+ *	* nperturb -- number of pertubation times
  *  * loa -- particle interaction compact support length
  *  * a -- the radius of the particles
  *  * aFx -- particle x forcing

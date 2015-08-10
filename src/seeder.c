@@ -26,15 +26,14 @@
 #include "domain.h"
 #include "particle.h"
 
-void seeder_read_input(int Nx, int Ny, int Nz, double ddz, double bias, 
-  int nperturb)
+void seeder_read_input(void)
 {
 
   int N;               // number of parts
   real loa;            // interaction length
 
   real a;              // particle radius
-  real x,y,z;          // particle positions
+  real xs,ys,zs;       // particle positions; used for start of arrays
   real aFx, aFy, aFz;  // particle linear forcing
   real aLx, aLy, aLz;  // particle angular forcing
   real rho;            // density
@@ -53,7 +52,7 @@ void seeder_read_input(int Nx, int Ny, int Nz, double ddz, double bias,
   int rot;             // particle is allowed to rotate
 
   int fret = 0;
-  fret = fret;    // prevent compiler warning
+  fret = fret;         // prevent compiler warning
 
   // open configuration file for reading
   char fname[FILE_NAME_SIZE] = "";
@@ -64,7 +63,6 @@ void seeder_read_input(int Nx, int Ny, int Nz, double ddz, double bias,
     exit(EXIT_FAILURE);
   }
 
-
   // read particle list
   fret = fscanf(infile, "n %d\n", &N);
 
@@ -72,7 +70,7 @@ void seeder_read_input(int Nx, int Ny, int Nz, double ddz, double bias,
   fret = fscanf(infile, "(l/a) %lf\n", &loa);
   fret = fscanf(infile, "\n");
   fret = fscanf(infile, "r %lf\n", &a);
-  fret = fscanf(infile, "(x, y, z) %lf %lf %lf\n", &x, &y, &z);
+  fret = fscanf(infile, "(x, y, z) %lf %lf %lf\n", &xs, &ys, &zs);
   fret = fscanf(infile, "(aFx, aFy, aFz) %lf %lf %lf\n",
     &aFx, &aFy, &aFz);
   fret = fscanf(infile, "(aLx, aLy, aLz) %lf %lf %lf\n",
@@ -86,7 +84,7 @@ void seeder_read_input(int Nx, int Ny, int Nz, double ddz, double bias,
   fret = fscanf(infile, "loa %f\n", &loa);
   fret = fscanf(infile, "\n");
   fret = fscanf(infile, "r %f\n", &a);
-  fret = fscanf(infile, "(x, y, z) %f %f %f\n", &x, &y, &z);
+  fret = fscanf(infile, "(x, y, z) %f %f %f\n", &xs, &ys, &zs);
   fret = fscanf(infile, "(aFx, aFy, aFz) %f %f %f\n",
     &aFx, &aFy, &aFz);
   fret = fscanf(infile, "(aLx, aLy, aLz) %f %f %f\n",
@@ -115,6 +113,7 @@ void seeder_read_input(int Nx, int Ny, int Nz, double ddz, double bias,
   fret = fscanf(infile, "rotating %d\n", &rot);
 
   // check parameters
+
   if (N < 1) {
     printf("Error: N must be > 1\n");
     exit(EXIT_FAILURE);
@@ -143,14 +142,12 @@ void seeder_read_input(int Nx, int Ny, int Nz, double ddz, double bias,
 
   // SEEDER
 
-  if (Nx*Ny*Nz != 0 ) {
-    N = Nx*Ny*Nz;
-  }
   printf("Requested Parameters:\n");
   printf("       N = %d\n", N);
 #ifdef DOUBLE
   printf("       (l/a) = %lf\n", loa);
-  printf("       r = %lf\n", a);
+  printf("       r = %.32f\n", a);
+  printf("       (x, y, z) = (%lf, %lf, %lf)\n", xs, ys, zs);
   printf("       (aFx, aFy, aFz) = (%lf, %lf, %lf)\n", aFx, aFy, aFz);
   printf("       (aLx, aLy, aLz) = (%lf, %lf, %lf)\n", aLx, aLy, aLz);
   printf("       rho = %lf\n", rho);
@@ -162,6 +159,7 @@ void seeder_read_input(int Nx, int Ny, int Nz, double ddz, double bias,
 #else
   printf("       (l/a) = %f\n", loa);
   printf("       r = %f\n", a);
+  printf("       (x, y, z) = (%f, %f, %f)\n", xs, ys, zs);
   printf("       (aFx, aFy, aFz) = (%f, %f, %f)\n", aFx, aFy, aFz);
   printf("       (aLx, aLy, aLz) = (%f, %f, %f)\n", aLx, aLy, aLz);
   printf("       rho = %f\n", rho);
@@ -185,42 +183,147 @@ void seeder_read_input(int Nx, int Ny, int Nz, double ddz, double bias,
   printf("       spring_l = %f\n", spring_l);
 #endif
   printf("       translating = %d\n", trans);
-  printf("       rotating = %d\n", rot);
-
+  printf("       rotating = %d\n\n", rot);
   fflush(stdout);
 
-  if(Nx == 0 && Ny == 0 && Nz == 0){ // random case
-    seeder(N, loa, a, aFx, aFy, aFz, aLx, aLy, aLz, rho, E, sigma, e_dry, 
-      l_rough, order, rs_r, spring_k, spring_x, spring_y, spring_z, spring_l,
-      trans, rot);   
-  }
-  else if(ddz == 0.0 && bias == 0.0 && nperturb == 0){ // array case
-    seeder_array(Nx, Ny, Nz, loa, a, aFx, aFy, aFz, aLx, aLy, aLz, rho, E, 
-    sigma, e_dry, l_rough, order, rs_r, spring_k, spring_x, spring_y, spring_z, 
-    spring_l,trans, rot);      
-  }
-  else if(ddz != 0.0 && bias == 0.0 && nperturb == 0){ // hex case
-    seeder_hex(Nx, Ny, Nz, ddz, loa, a, aFx, aFy, aFz, aLx, aLy, aLz, rho, E, 
-    sigma, e_dry, l_rough, order, rs_r, spring_k, spring_x, spring_y, spring_z, 
-    spring_l, trans, rot);
-  }
-  else if(ddz == 0.0 && bias != 0 && nperturb != 0){ // perturb case
-    seeder_high_vol_random(Nx, Ny, Nz, bias, nperturb, loa, a, aFx, aFy, aFz, 
-    aLx, aLy, aLz, rho, E, sigma, e_dry, l_rough, order, rs_r, spring_k, 
-    spring_x, spring_y, spring_z, spring_l, trans, rot);    
-  }
-  else{
-    printf("The input parameters are not correct! Please check!\n");
+  printf("Seed particles according to parameters specified in");
+  printf(" parts.config? (y/N)\n");
+  fflush(stdout);
+  int c = getchar();
+
+  if (c == 'Y' || c == 'y') {
+    printf("Seed particles for which kind of array?\n");
+    printf("\t(r)andom / (a)rray / (h)ex / (p)erturbed?\n");
     fflush(stdout);
+    //TODO: ask adam about this
+    int tmp = getchar();
+    tmp = tmp;
+    int type = getchar();
+
+    int Nx = 0; int Ny = 0; int Nz = 0;   // number of particles in each dir
+    real dx = 0.; real dy = 0.; real dz = 0.; // interparticle spacing
+    // TODO: maybe input Nx, Ny, Nz for hex? hard to tell b/c of spacing...
+    real xExtent = 0.; real yExtent = 0.; real zExtent = 0; // array extents
+    real alpha = 0.;      // volume fraction
+    real ratio = 0.;      // max percent of radius that particle can beperturbed
+    int nperturb = 0;     // n times to perturb
+
+    switch(type) {
+      case 'r':   // random
+        seeder(N, loa, a, aFx, aFy, aFz, aLx, aLy, aLz, rho, E, sigma, e_dry, 
+          l_rough, order, rs_r, spring_k, spring_x, spring_y, spring_z, 
+          spring_l, trans, rot);   
+        break;
+
+      case 'a':   // array
+#ifdef DOUBLE
+        printf("Starting position taken from part.config: (%lf, %lf, %lf)\n",
+          xs, ys, zs);
+#else        
+        printf("Starting position taken from part.config: (%f, %f, %f)\n",
+          xs, ys, zs);
+#endif
+        // particle numbers
+        printf("Input number of particles in X direction:\n");
+        fflush(stdout);
+        fret = scanf("%d", &Nx);
+        printf("Input number of particles in Y direction:\n");
+        fflush(stdout);
+        fret = scanf("%d", &Ny);
+        printf("Input number of particles in Z direction:\n");
+        fflush(stdout);
+        fret = scanf("%d", &Nz);
+        // particle spacing (between surfaces of particle)
+        printf("Input interparticle spacing in X direction:\n");
+        fflush(stdout);
+        fret = scanf("%lf", &dx);
+        printf("Input interparticle spacing in Y direction:\n");
+        fflush(stdout);
+        fret = scanf("%lf", &dy);
+        printf("Input interparticle spacing in Z direction:\n");
+        fflush(stdout);
+        fret = scanf("%lf", &dz);
+
+        seeder_array(Nx, Ny, Nz, dx, dy, dx, xs, ys, zs, 
+          loa, a, aFx, aFy, aFz, aLx, aLy, aLz, rho, E, sigma, e_dry, l_rough, 
+          order, rs_r, spring_k, spring_x, spring_y, spring_z, spring_l,trans, 
+          rot);      
+        break;
+
+      case 'h':   // hexagonal packed
+#ifdef DOUBLE
+        printf("Starting position taken from part.config: (%lf, %lf, %lf)\n",
+          xs, ys, zs);
+#else        
+        printf("Starting position taken from part.config: (%f, %f, %f)\n",
+          xs, ys, zs);
+#endif
+        // extents of array
+        printf("Please input X extent\n");
+        fflush(stdout);
+        fret = scanf("%lf", &xExtent);
+        printf("Please input Y extent\n");
+        fflush(stdout);
+        fret = scanf("%lf", &yExtent);
+        printf("Please input Z extent\n");
+        fflush(stdout);
+        fret = scanf("%lf", &zExtent);
+        // desired volume fraction of array
+        printf("Please input the volume fraction (-1 for HCP)\n");
+        fflush(stdout);
+        fret = scanf("%lf", &alpha);
+
+        seeder_hex(xExtent, yExtent, zExtent, alpha, xs, ys, zs,
+          loa, a, aFx, aFy, aFz, aLx, aLy, aLz, rho, E, sigma, e_dry, l_rough, 
+          order, rs_r, spring_k, spring_x, spring_y, spring_z, spring_l, trans, 
+          rot);
+        break;
+
+      case 'p':   // perturbed
+        printf("Please input the particle number in x direction\n");
+        fflush(stdout);
+        fret = scanf("%d", &Nx);
+        printf("Please input the particle number in y direction\n");
+        fflush(stdout);
+        fret = scanf("%d", &Ny);
+        printf("Please input the particle number in z direction\n");
+        fflush(stdout);
+        fret = scanf("%d", &Nz);
+        printf("Please input the perturbation magnitude");
+        printf(" (between 0 and 1)\n");
+        fflush(stdout);
+        fret = scanf("%lf", &ratio);
+        printf("Please input the number of perturbations");
+        printf(" (should be larger than 100,000)\n");
+        fflush(stdout);
+        fret = scanf("%d", &nperturb);
+
+        seeder_high_vol_random(Nx, Ny, Nz, ratio, nperturb, 
+          loa, a, aFx, aFy, aFz, aLx, aLy, aLz, rho, E, sigma, e_dry, l_rough, 
+          order, rs_r, spring_k, spring_x, spring_y, spring_z, spring_l, trans, 
+          rot);    
+        break;
+
+      default:    // any other options
+        printf("Option unrecognized.\n");
+        fflush(stdout);
+        exit(EXIT_FAILURE);
+    }
+
+  } else {
+    printf("Please specify the desired parameters in parts.config\n\n");
+    fflush(stdout);
+    exit(EXIT_FAILURE);
   }
 }
 
 void seeder(int nparts, real loa, real a, real aFx, real aFy, real aFz, 
   real aLx, real aLy, real aLz, real rho, real E, real sigma, real e_dry,
   real l_rough, int o, real rs, real spring_k, real spring_x, real spring_y,
-  real spring_z, real spring_l, int t, int r) {
+  real spring_z, real spring_l, int t, int r)
+{
 
-  printf("Running bluebottle seeder for %d particles...\n\n", nparts);
+  printf("Running random seeder for %d particles...\n\n", nparts);
   fflush(stdout);
   real xx, yy, zz;
   int fits = 1;
@@ -821,51 +924,67 @@ void seeder(int nparts, real loa, real a, real aFx, real aFy, real aFz,
   parts_clean();
 }
 
-void seeder_array(int Nx, int Ny, int Nz, real loa, real a, real aFx, real aFy, 
-  real aFz, real aLx, real aLy, real aLz, real rho, real E, real sigma, 
-  real e_dry, real l_rough, int o, real rs, real spring_k, real spring_x, 
-  real spring_y, real spring_z, real spring_l, int t, int r)
+void seeder_array(int Nx, int Ny, int Nz, real dx, real dy, real dz,
+  real xs, real ys, real zs, real loa, real a, real aFx, real aFy, real aFz, 
+  real aLx, real aLy, real aLz, real rho, real E, real sigma, real e_dry, 
+  real l_rough, int o, real rs, real spring_k, real spring_x, real spring_y, 
+  real spring_z, real spring_l, int t, int r)
 {
-  printf("Running bluebottle seeder for %d particles...\n\n", Nx*Ny*Nz);
+
+  int nparts = Nx*Ny*Nz;
+  printf("Running array seeder for %d particles...\n\n", nparts);
   fflush(stdout);
-  int fail = 0;
 
   // read domain input
   domain_read_input();
   domain_init();
 
-  nparts = Nx*Ny*Nz;
+  // domain size accounting for screen
+  real dom_xs = Dom.xs + bc.dsW;
+  real dom_xl = Dom.xl - bc.dsE - bc.dsW;
+  real dom_ys = Dom.ys + bc.dsS;
+  real dom_yl = Dom.yl - bc.dsN - bc.dsS;
+  real dom_zs = Dom.zs + bc.dsB;
+  real dom_zl = Dom.zl - bc.dsT - bc.dsB;
+
+  // allocate particle list
   parts = (part_struct*) malloc(nparts * sizeof(part_struct));
   cpumem += nparts * sizeof(part_struct);
 
-  //dx is the distance between centers of two nearby particles in x direction
-  real dx = Dom.xl/Nx;
-  real dy = Dom.yl/Ny;
-  real dz = Dom.zl/Nz;
-
-  if(dx < 2.*a){
-    printf("Too many particles in x direction!\n");
-    fail = 1;
-  }
-  if(dy < 2.*a){
-    printf("Too many particles in y direction!\n");
-    fail = 1; 
-  }
-  if(dz < 2.*a){
-    printf("Too many particles in z direction!\n");
-    fail = 1; 
-  } 
-  if(fail == 1) {
+  // check for interactions
+  if (dx < 0 || dy < 0 || dz < 0){
+    // check particle spacing
+    printf("Particles intersect! (dx, dy, dz) must be positive\n");
+    fflush(stdout);
+    printf("...bluebottle seeder failed.\n\n");
+    exit(EXIT_FAILURE);
+  } else if ((xs - a) < dom_xs || (ys - a) < dom_ys || (zs - a) < dom_zs) {
+    // check domain boundaries
+    printf("Starting position creates particle outside of domain\n");
+    fflush(stdout);
+    printf("...bluebottle seeder failed.\n\n");
+    exit(EXIT_FAILURE);
+  } else if ((Nx*a + (Nx - 1)*dx) > dom_xl ||
+             (Ny*a + (Ny - 1)*dy) > dom_yl ||
+             (Nz*a + (Nz - 1)*dz) > dom_zl) {
+    // check if particles fit in domain
+    printf("Too many particles in the domain for given numbers and spacing\n");
+    fflush(stdout);
     printf("...bluebottle seeder failed.\n\n");
     exit(EXIT_FAILURE);
   }
 
-  for(int k = 0; k < Nz; k++) {
+  // distance between particle centers
+  real Rx = dx + 2*a;
+  real Ry = dy + 2*a;
+  real Rz = dz + 2*a;
+
+  for (int k = 0; k < Nz; k++) {
     for (int j = 0; j < Ny; j++) {
       for (int i = 0; i < Nx; i++) {
-        parts[i + j*Nx + k*(Nx*Ny)].x = Dom.xs + 0.5*dx + i*dx;
-        parts[i + j*Nx + k*(Nx*Ny)].y = Dom.ys + 0.5*dy + j*dy;
-        parts[i + j*Nx + k*(Nx*Ny)].z = Dom.zs + 0.5*dz + k*dz;
+        parts[i + j*Nx + k*(Nx*Ny)].x = xs + i*Rx;
+        parts[i + j*Nx + k*(Nx*Ny)].y = ys + j*Ry;
+        parts[i + j*Nx + k*(Nx*Ny)].z = zs + k*Rz;
         parts[i + j*Nx + k*(Nx*Ny)].r = a;
         parts[i + j*Nx + k*(Nx*Ny)].u = 0.;
         parts[i + j*Nx + k*(Nx*Ny)].v = 0.;
@@ -944,107 +1063,173 @@ void seeder_array(int Nx, int Ny, int Nz, real loa, real a, real aFx, real aFy,
   domain_clean();
   parts_clean(); 
 }
-void seeder_hex(int Nx, int Ny, int Nz, double ddz, real loa, real a, real aFx, 
-  real aFy, real aFz, real aLx, real aLy, real aLz, real rho, real E, 
-  real sigma, real e_dry, real l_rough, int o, real rs, real spring_k, 
-  real spring_x, real spring_y, real spring_z, real spring_l, int t, int r)
+
+void seeder_hex(real xExtent, real yExtent, real zExtent, real alpha, real xs, 
+  real ys, real zs,
+  real loa, real a, real aFx, real aFy, real aFz, real aLx, real aLy, real aLz, 
+  real rho, real E, real sigma, real e_dry, real l_rough, int o, real rs, 
+  real spring_k, real spring_x, real spring_y, real spring_z, real spring_l, 
+  int t, int r)
 {
-
-  // ddz is the vertical distance from the top of one layer to the middle of the
-  // next
-  //real ddz = 0.87; //the miminum value of this one is "0.732"
-
 
   // read domain input
   domain_read_input();
   domain_init();
 
-  // total number of particles
-  // half are large, half are small. if odd number of layers, top layer is large
-  int layers = floor(0.5*((real) Nz));
-  int large = Nx*Ny;
-  int small = (Nx - 1)*(Ny - 1);
-  nparts = layers*(large + small) + (Nz % 2)*Nx*Ny;
+  // find separation distance (from wolframalpha, hex close pack proof)
+  // Vsp = 8*pi*a^3
+  // Acell = 3.2 * R^2 * sqrt(2)
+  // hcell = 2*R*sqrt(2/3)
+  // alpha = 8*pi*a^3/(3*R^3*sqrt(2))
+  // --> R = (8*pi*a^3/(3*eta*sqrt(2)))^(1/3)
 
-  printf("The total number of particle is %d \n\n", nparts);
-  printf("Running bluebottle seeder for %d particles...\n\n", nparts);
+  real R = 0.; // horizontal separation between centers
+  real h = 0.; // vertical separation between centers
+
+  if (alpha > 0) {
+    R = pow(8.*PI*pow(a,3.)/(3.*alpha*sqrt(2.)), 1./3.);
+    h = R*sqrt(3.)/2.;
+
+    // check overlap
+    if (R < 2.*a) {
+      printf("Overlap is wrong. Volume fraction range is 0 to 0.74...\n");
+      exit(EXIT_FAILURE);
+    }
+  } else if (alpha == -1) {
+    R = 2.*a;
+    h = R*sqrt(3.)/2.;
+  } else {
+    printf("Unrecognized option.\n");
+    exit(EXIT_FAILURE);
+  }
+
+  // clear nonsig figs of inputs:
+  // -- If domain size is exact multiple of radius and HCP is chosen,
+  // -- floating point arithmetic will be slighly off and so 'float' used below
+  // -- will round to the wrong number. This should fix that issue.
+  real a16 = a*1e16;
+  real R16 = R*1e16;
+  real h16 = h*1e16;
+  real xExtent16 = xExtent*1e16;
+  real yExtent16 = yExtent*1e16;
+  real zExtent16 = zExtent*1e16;
+  
+  // find total number of particles in large and small layers
+  int Nx_lg = floor((xExtent16 - 2.*a16)/R16) + 1;
+  int Ny_lg = floor((yExtent16 - 2.*a16)/R16) + 1;
+  int Nx_sm = Nx_lg - 1;
+  int Ny_sm = Ny_lg - 1;
+  int N_lg = Nx_lg*Ny_lg;
+  int N_sm = Nx_sm*Ny_sm;
+
+  // find number of layers of each type
+  int nlayers = floor((zExtent16 - 2.*a16)/h16);         // total layers
+  int nlay_lg = floor(0.5*nlayers) + (nlayers % 2); // large layers
+  int nlay_sm = nlayers - nlay_lg;                  // small layers
+
+  printf("%d large layers: %d x %d\n", nlay_lg, Nx_lg, Ny_lg);
+  printf("%d small layers: %d x %d\n", nlay_sm, Nx_sm, Ny_sm);
+
+  nparts = N_lg*nlay_lg + N_sm*nlay_sm;
+
+  printf("The total number of particles is %d \n", nparts);
+  printf("Running bluebottle seeder for %d particles...\n", nparts);
   fflush(stdout);
+
   // allocate particle list
   parts = (part_struct*) malloc(nparts * sizeof(part_struct));
   cpumem += nparts * sizeof(part_struct);
 
-  // dx in the distance between centers of two nearby particles in x direction
-  real dx = Dom.xl/Nx;
-  real dy = Dom.yl/Ny;
+  // calculate starting positions
+  real dom_xs = Dom.xs + bc.dsW;
+  real dom_xl = Dom.xl - bc.dsE - bc.dsW;
+  real dom_ys = Dom.ys + bc.dsS;
+  real dom_yl = Dom.yl - bc.dsN - bc.dsS;
+  real dom_zs = Dom.zs + bc.dsB;
+  real dom_zl = Dom.zl - bc.dsT - bc.dsB;
 
-  if(Nz*ddz + 2.*a > Dom.zl){
-    printf("Too many layers in z direction");
+  // check for interactions
+  if ((xs - a) < dom_xs || (ys - a) < dom_ys || (zs - a) < dom_zs) {
+    // check domain boundaries
+    printf("Starting position creates particle outside of domain\n");
+    fflush(stdout);
+    printf("...bluebottle seeder failed.\n\n");
+    exit(EXIT_FAILURE);
+  } else if ((Nx_lg*R + 2*a) > dom_xl ||
+             (Ny_lg*R + 2*a) > dom_yl ||
+             (nlayers*h + 2*a) > dom_zl) {
+    // check if particles fit in domain
+    printf("Too many particles in the domain for given numbers and spacing\n");
+    fflush(stdout);
+    printf("...bluebottle seeder failed.\n\n");
     exit(EXIT_FAILURE);
   }
-  if(Nx*2.*a > Dom.xl){
-    printf("Too many layers in x direction");
-    exit(EXIT_FAILURE);
-  }
-  if(Ny*2.*a > Dom.yl){
-    printf("Too many layers in y direction");
-    exit(EXIT_FAILURE);
-  }  
-  if(ddz < 0.732){
-    printf("Too small distance in neighbouring layer");
-    exit(EXIT_FAILURE);
-  }
-  
-  int nx, ny;
-  int point;
+
   int index = 0;
-    
-  for(int k = 0; k < Nz; k++)
-  { 
-    point = k % 2;
-    if (point == 1) {
-      nx = Nx - 1;
-      ny = Ny - 1;
-    } else {
-      nx = Nx;
-      ny = Ny;
-    }   
-    for (int j = 0; j < ny; j++)
-    {
-      for (int i = 0; i < nx; i++)
-      {   
-        parts[index].x = Dom.xs + 0.5*dx + i*dx + 0.5*point*dx;
-        parts[index].y = Dom.ys + 0.5*dy + j*dy + 0.5*point*dy;
-        parts[index].z = Dom.zs + a + k*ddz*a;        
-        parts[index].r = a;
-        parts[index].u = 0.;
-        parts[index].v = 0.;
-        parts[index].w = 0.;
-        parts[index].aFx = aFx;
-        parts[index].aFy = aFy;
-        parts[index].aFz = aFz;
-        parts[index].aLx = aLx;
-        parts[index].aLy = aLy;
-        parts[index].aLz = aLz;
-        parts[index].rho = rho;
-        parts[index].E = E;
-        parts[index].sigma = sigma;
-        parts[index].e_dry = e_dry;
-        parts[index].l_rough = l_rough;         
-        parts[index].order = o;
-        parts[index].rs = rs;
-        parts[index].spring_k = spring_k;
-        parts[index].spring_x = spring_x;
-        parts[index].spring_y = spring_y;
-        parts[index].spring_z = spring_z;
-        parts[index].spring_l = spring_l;        
-        parts[index].ncoeff = 0.;
-        parts[index].translating = t;
-        parts[index].rotating = r;
-        index = index + 1;       
+  real X = 0;
+  real Y = 0;
+  real Z = 0;
+  // large layers
+  for (int k = 0; k < nlay_lg; k++) {
+    for (int j = 0; j < Ny_lg; j++) {
+      for (int i = 0; i < Nx_lg; i++ ) {
+        X = xs + i*R;
+        Y = ys + j*R;
+        Z = zs + 2.*h*k;
+
+        parts[index].x = X;
+        parts[index].y = Y;
+        parts[index].z = Z;
+        index++;
       }
     }
   }
-  printf("Writing part_seeder_hex.config...");
+
+  // small layers
+  for (int k = 0; k < nlay_sm; k++) {
+    for (int j = 0; j < Ny_sm; j++) {
+      for (int i = 0; i < Nx_sm; i++ ) {
+
+        X = xs + 0.5*R + i*R;
+        Y = ys + 0.5*R + j*R;
+        Z = zs + h + 2.*h*k;
+
+        parts[index].x = X;
+        parts[index].y = Y;
+        parts[index].z = Z;
+        index++;
+      }
+    }
+  }
+
+  for (int nn = 0; nn < nparts; nn++) {
+        parts[nn].u = 0.;
+        parts[nn].v = 0.;
+        parts[nn].w = 0.;
+        parts[nn].aFx = aFx;
+        parts[nn].aFy = aFy;
+        parts[nn].aFz = aFz;
+        parts[nn].aLx = aLx;
+        parts[nn].aLy = aLy;
+        parts[nn].aLz = aLz;
+        parts[nn].rho = rho;
+        parts[nn].E = E;
+        parts[nn].sigma = sigma;
+        parts[nn].e_dry = e_dry;
+        parts[nn].l_rough = l_rough;         
+        parts[nn].order = o;
+        parts[nn].rs = rs;
+        parts[nn].spring_k = spring_k;
+        parts[nn].spring_x = spring_x;
+        parts[nn].spring_y = spring_y;
+        parts[nn].spring_z = spring_z;
+        parts[nn].spring_l = spring_l;        
+        parts[nn].ncoeff = 0.;
+        parts[nn].translating = t;
+        parts[nn].rotating = r;
+  }
+
+  printf("Writing part_seeder_hex.config... ");
   fflush(stdout);
   // write particle configuration to file
   char fname[FILE_NAME_SIZE] = "";
@@ -1063,7 +1248,7 @@ void seeder_hex(int Nx, int Ny, int Nz, double ddz, real loa, real a, real aFx,
   // write each particle configuration
   for(int i = 0; i < nparts; i++) {
     fprintf(ofile, "\n");
-    fprintf(ofile, "r %f\n", parts[i].r);
+    fprintf(ofile, "r %f\n", a);
     fprintf(ofile, "(x, y, z) %f %f %f\n", parts[i].x, parts[i].y, parts[i].z);
     fprintf(ofile, "(aFx, aFy, aFz) %f %f %f\n", parts[i].aFx, parts[i].aFy,
       parts[i].aFz);
@@ -1094,26 +1279,31 @@ void seeder_hex(int Nx, int Ny, int Nz, double ddz, real loa, real a, real aFx,
   domain_clean();
   parts_clean();    
 }
-void seeder_high_vol_random(int Nx, int Ny, int Nz, double bias, int nperturb, 
+
+void seeder_high_vol_random(int Nx, int Ny, int Nz, real ratio, int nperturb, 
   real loa, real a, real aFx, real aFy, real aFz, real aLx, real aLy, real aLz,
   real rho, real E, real sigma, real e_dry, real l_rough, int o, real rs, 
   real spring_k, real spring_x, real spring_y, real spring_z, real spring_l, 
   int t, int r)
 {
 
-  // Generate a random field by perturbing a regular arrary npertrub times and
-  // checkinng for interactions
+  // Generate a random field by perturbing a regular arrary nperturb times and
+  // checking for interactions
+  // ratio is the max a particle can be perturbed, given as percentage of radius
 
-  printf("Running bluebottle seeder for %d particles...\n\n", Nx*Ny*Nz);
+  nparts = Nx*Ny*Nz;
+  printf("Running bluebottle seeder for %d particles...\n\n", nparts);
   fflush(stdout);
+  //int fits = 1;
+  //int attempts = 1;
   int fail = 0;
+  //int redo = 1;
   
-  // bias is the ratio of how much it can move 
   // read domain input
   domain_read_input();
   domain_init();
-  nparts = Nx*Ny*Nz;
 
+  // allocate particle list
   parts = (part_struct*) malloc(nparts * sizeof(part_struct));
   cpumem += nparts * sizeof(part_struct);
 
@@ -1122,29 +1312,26 @@ void seeder_high_vol_random(int Nx, int Ny, int Nz, double bias, int nperturb,
   real dy = Dom.yl/Ny;
   real dz = Dom.zl/Nz;
 
-  if(dx < 2.*a){
+  if(dx < 2.*a) {
     printf(" Too many particles in x direction\n");
     fail = 1;
   }
-  if(dy < 2.*a){
+  if(dy < 2.*a) {
     printf("Too many particles in y direction\n");
     fail = 1; 
   }
-  if(dz < 2.*a){
+  if(dz < 2.*a) {
     printf("Too many particles in z direction\n");
     fail = 1; 
   } 
   if(fail == 1) {
-    printf("...bluebottle seeder done.\n\n");
+    printf("...bluebottle seeder failed.\n\n");
     exit(EXIT_FAILURE);
   }
   // Set the initial regular domain
-  for(int k = 0; k < Nz; k++)
-  {
-    for (int j = 0; j < Ny; j++)
-    {
-      for (int i = 0; i < Nx; i++)
-      {
+  for(int k = 0; k < Nz; k++) {
+    for (int j = 0; j < Ny; j++) {
+      for (int i = 0; i < Nx; i++) {
         parts[i + j*Nx + k*(Nx*Ny)].x = Dom.xs + (2.*i + 1)*dx*0.5; 
         parts[i + j*Nx + k*(Nx*Ny)].y = Dom.ys + (2.*j + 1)*dy*0.5;
         parts[i + j*Nx + k*(Nx*Ny)].z = Dom.zs + (2.*k + 1)*dz*0.5;  
@@ -1172,9 +1359,9 @@ void seeder_high_vol_random(int Nx, int Ny, int Nz, double bias, int nperturb,
           y_pert = -1. + 2.*rand() / (real)RAND_MAX;
           z_pert = -1. + 2.*rand() / (real)RAND_MAX;
 
-          x_new = parts[i + j*Nx + k*(Nx*Ny)].x + bias*a*x_pert;
-          y_new = parts[i + j*Nx + k*(Nx*Ny)].y + bias*a*y_pert;
-          z_new = parts[i + j*Nx + k*(Nx*Ny)].z + bias*a*z_pert;
+          x_new = parts[i + j*Nx + k*(Nx*Ny)].x + ratio*a*x_pert;
+          y_new = parts[i + j*Nx + k*(Nx*Ny)].y + ratio*a*y_pert;
+          z_new = parts[i + j*Nx + k*(Nx*Ny)].z + ratio*a*z_pert;
           if (x_new > Dom.xs && x_new < Dom.xe && 
               y_new > Dom.ys && y_new < Dom.ye && 
               z_new > Dom.zs && z_new < Dom.ze) {
