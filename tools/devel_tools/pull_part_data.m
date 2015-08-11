@@ -46,7 +46,7 @@ te = nInd(end);
 nt = length(nInd);
 
 % number of particles
-[temp, ~, ~] = cgns_read_part_position(dir, 0);
+[temp, ~, ~] = cgns_read_part_position(dir, tstr{nInd(1)});
 np = size(temp,1);
 
 if nargin == 4

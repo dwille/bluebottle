@@ -8,11 +8,11 @@ for rr = 1:length(r0)
   if r0(rr) == -1
     continue;
   end
-  loglog(tnum(time), avgVol(rr,:)./(4/3*pi*dom.r^3), style{rr})
+  loglog(time, avgVol(rr,:)./(4/3*pi*dom.r^3), style{rr})
   hold on
   leg{rr} = ['r0 = ' num2str(r0(rr))];
 end
-loglog(tnum(time), 0.01*tnum(time).^(2), 'k--')
+loglog(time, 0.01*time.^(2), 'k--')
 xlabel('Time')
 ylabel('<V>/(4/3 \pi r^3)')
 title('Tetrad Volume')
@@ -28,11 +28,11 @@ for rr = 1:length(r0)
   if r0(rr) == -1
     continue;
   end
-  loglog(tnum(time), avgRsq(rr,:).^(1/2)./dom.r, style{rr})
+  loglog(time, avgRsq(rr,:).^(1/2)./dom.r, style{rr})
   hold on
   leg{rr} = ['r0 = ' num2str(r0(rr))];
 end
-loglog(tnum(time), 1.25*tnum(time).^(3/4), 'k--')
+loglog(time, 1.25*time.^(3/4), 'k--')
 ylim([2*10^0, 10^(1.5)]);
 xlabel('Time')
 ylabel('<R^2>^{1/2}/r')
@@ -48,7 +48,7 @@ for rr = 1:length(r0)
   if r0(rr) == -1
     continue;
   end
-  semilogx(tnum(time), avgLambda(rr,:), style{rr})
+  semilogx(time, avgLambda(rr,:), style{rr})
   hold on
   leg{rr} = ['r0 = ' num2str(r0(rr))];
 end
@@ -66,7 +66,7 @@ for rr = 1:length(r0)
   if r0(rr) == -1
     continue;
   end
-  semilogx(tnum(time), avgI1(rr,:), style{rr})
+  semilogx(time, avgI1(rr,:), style{rr})
   hold on
   leg{rr} = ['r0 = ' num2str(r0(rr))];
 end
@@ -77,7 +77,7 @@ for rr = 1:length(r0)
   if r0(rr) == -1
     continue;
   end
-  semilogx(tnum(time), avgI2(rr,:), style{rr})
+  semilogx(time, avgI2(rr,:), style{rr})
   hold on
   leg{rr} = ['r0 = ' num2str(r0(rr))];
 end
@@ -88,7 +88,7 @@ for rr = 1:length(r0)
   if r0(rr) == -1
     continue;
   end
-  semilogx(tnum(time), avgI3(rr,:), style{rr})
+  semilogx(time, avgI3(rr,:), style{rr})
   hold on
   leg{rr} = ['r0 = ' num2str(r0(rr))];
 end

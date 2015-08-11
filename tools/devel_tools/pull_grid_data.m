@@ -9,12 +9,15 @@ function pull_grid_data(dir)
 
 fprintf('Initializing... \n');
 
+% time
+[tstr tnum] = cgns_read_part_time(dir);
+
 % number of particles
-[temp, ~, ~] = cgns_read_part_position(dir, 0);
+[temp, ~, ~] = cgns_read_part_position(dir, tstr{1});
 np = size(temp,1);
 
 % radius -- TODO: mean(r) is not correct if multiple particle sizes
-r = cgns_read_part_radius(dir, 0);
+r = cgns_read_part_radius(dir, tstr{1});
 dom.r = mean(r);
 
 fprintf('Reading data... ');
