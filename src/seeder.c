@@ -1155,9 +1155,9 @@ void seeder_hex(real xExtent, real yExtent, real zExtent, real alpha, real xs,
     fflush(stdout);
     printf("...bluebottle seeder failed.\n\n");
     exit(EXIT_FAILURE);
-  } else if ((Nx_lg*R + 2*a) > dom_xl ||
-             (Ny_lg*R + 2*a) > dom_yl ||
-             (nlayers*h + 2*a) > dom_zl) {
+  } else if (((Nx_lg - 1)*R + 2*a) > dom_xl ||
+             ((Ny_lg - 1)*R + 2*a) > dom_yl ||
+             ((nlayers - 1)*h + 2*a) > dom_zl) {
     // check if particles fit in domain
     printf("Too many particles in the domain for given numbers and spacing\n");
     fflush(stdout);
