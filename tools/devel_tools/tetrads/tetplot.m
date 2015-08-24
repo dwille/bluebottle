@@ -19,8 +19,7 @@ title('Tetrad Volume')
 leg = [leg {'t^{2}'}];
 legend(leg, 'Location', 'SouthEast')
 clearvars leg
-print('vol', '-dpdf', '-r300')
-error('\n')
+%print('vol', '-dpdf', '-r300')
 
 % Plot radius of gyration
 figure
@@ -40,7 +39,7 @@ title('Tetrad Radius of Gyration')
 leg = [leg {'t^{3/4}'}];
 legend(leg, 'Location', 'SouthEast')
 clearvars leg
-print('rsq', '-dpdf', '-r300')
+%print('rsq', '-dpdf', '-r300')
  
 % Plot lambda
 figure
@@ -57,7 +56,7 @@ ylabel('\Lambda')
 title('\Lambda = V^{2/3}/R^2')
 legend(leg)
 clearvars leg
-print('lambda', '-dpdf', '-r300')
+%print('lambda', '-dpdf', '-r300')
 
 % Plot I1
 figure
@@ -95,4 +94,119 @@ end
 xlabel('Time [ms]')
 ylabel('I3')
 legend(leg, 'Location', 'NorthEast')
-print('ifactor', '-dpdf', '-r300')
+%print('ifactor', '-dpdf', '-r300')
+
+% Plot theta1
+figure
+subplot(3,1,1)
+for rr = 1:length(r0)
+  if r0(rr) == -1
+    continue;
+  end
+  semilogx(time, avgTheta1(rr,:), style{rr})
+  hold on
+  leg{rr} = ['r0 = ' num2str(r0(rr))];
+end
+ylabel('\theta_1')
+% Plot theta2
+subplot(3,1,2)
+for rr = 1:length(r0)
+  if r0(rr) == -1
+    continue;
+  end
+  semilogx(time, avgTheta2(rr,:), style{rr})
+  hold on
+  leg{rr} = ['r0 = ' num2str(r0(rr))];
+end
+ylabel('\theta_2')
+% Plot theta2
+subplot(3,1,3)
+for rr = 1:length(r0)
+  if r0(rr) == -1
+    continue;
+  end
+  semilogx(time, avgTheta3(rr,:), style{rr})
+  hold on
+  leg{rr} = ['r0 = ' num2str(r0(rr))];
+end
+xlabel('Time [ms]')
+ylabel('\theta_3')
+legend(leg, 'Location', 'NorthEast')
+%print('ifactor', '-dpdf', '-r300')
+
+% Plot kappa1
+figure
+subplot(3,1,1)
+for rr = 1:length(r0)
+  if r0(rr) == -1
+    continue;
+  end
+  loglog(time, abs(avgK1(rr,:)), ssemilogxtyle{rr})
+  hold on
+  leg{rr} = ['r0 = ' num2str(r0(rr))];
+end
+ylabel('\kappa_1')
+% Plot kappa2
+subplot(3,1,2)
+for rr = 1:length(r0)
+  if r0(rr) == -1
+    continue;
+  end
+  loglog(time, abs(avgK2(rr,:)), style{rr})
+  hold on
+  leg{rr} = ['r0 = ' num2str(r0(rr))];
+end
+ylabel('\kappa_2')
+% Plot kappa2
+subplot(3,1,3)
+for rr = 1:length(r0)
+  if r0(rr) == -1
+    continue;
+  end
+  loglog(time, abs(avgK3(rr,:)), style{rr})
+  hold on
+  leg{rr} = ['r0 = ' num2str(r0(rr))];
+end
+xlabel('Time [ms]')
+ylabel('\kappa_3')
+legend(leg, 'Location', 'NorthEast')
+%print('ifactor', '-dpdf', '-r300')
+
+% Plot kappa1 over R
+figure
+subplot(3,1,1)
+for rr = 1:length(r0)
+  if r0(rr) == -1
+    continue;
+  end
+  loglog(avgRsq(rr,:).^(1/2)./dom.r, abs(avgK1(rr,:)), style{rr})
+  hold on
+  leg{rr} = ['r0 = ' num2str(r0(rr))];
+end
+ylabel('\kappa_1')
+% Plot kappa2
+subplot(3,1,2)
+for rr = 1:length(r0)
+  if r0(rr) == -1
+    continue;
+  end
+  loglog(avgRsq(rr,:).^(1/2)./dom.r, abs(avgK2(rr,:)), style{rr})
+  hold on
+  leg{rr} = ['r0 = ' num2str(r0(rr))];
+end
+ylabel('\kappa_2')
+% Plot kappa2
+subplot(3,1,3)
+for rr = 1:length(r0)
+  if r0(rr) == -1
+    continue;
+  end
+  loglog(avgRsq(rr,:).^(1/2)./dom.r, abs(avgK3(rr,:)), style{rr})
+  hold on
+  leg{rr} = ['r0 = ' num2str(r0(rr))];
+end
+xlabel('R/a [mm]')
+ylabel('\kappa_3')
+legend(leg, 'Location', 'NorthEast')
+%print('ifactor', '-dpdf', '-r300')
+

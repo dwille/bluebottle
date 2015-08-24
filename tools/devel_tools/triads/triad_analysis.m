@@ -11,11 +11,10 @@
 % INPUTS:
 % -- r0: 1D array of triad base lengths, as a multiple of the particle radius
 % -- ts: Start time
-% -- dt: Sampling frequency of TIMESTEPS (in units of timesteps)
 % -- te: End time
 % -- tol: Position tolerance as a multiple of particle radius
 
-function triad_analysis(r0, ts, dt, te, tol)
+function triad_analysis(r0, ts, te, tol)
 % TESTING:
 %r0 = 4; ts = 500; dt = 10; te = 600; tol = 1;
 
@@ -36,7 +35,6 @@ if (isempty(nInd) == 1)
   error('Desired time is not within the simulation time limits.');
 end
 time(ind) = [];
-
 ts = nInd(1);
 te = nInd(end);
 
@@ -61,9 +59,7 @@ for rr = 1:length(r0)
   end
 
   % loop over all triads
-  tetiter = 0;
   for tet = 1:size(T,2)
-    tetiter = tetiter + 1;
     % Pull part number and position vector
     p1.n = T(1,tet);
     p2.n = T(2,tet);
@@ -78,9 +74,7 @@ for rr = 1:length(r0)
     rho_3 = [0;0;0;];
 
     % loop over time
-    titer = 0;
-    time = ts:10:te;
-    for tt = ts:dt:te
+    for tt = 1:length(time)
       % Plot over time
       %plot3(p1.X(1,tt), p1.X(2,tt), p1.X(3,tt),'ok','MarkerSize', 5, 'MarkerFaceColor', 'k')
       %axis([dom.xs dom.xe dom.ys dom.ye dom.zs dom.ze])
@@ -107,7 +101,6 @@ for rr = 1:length(r0)
       %drawnow
       %pause(0.25)
 
-      titer = titer + 1;
       G = [rho_1(:,tt), rho_2(:,tt), rho_3];
       Gmom = G*transpose(G);
       eigVal = eigs(Gmom);
@@ -121,21 +114,21 @@ for rr = 1:length(r0)
       end
 
       % avg of squared lengths of each side
-      Rsq(tetiter, titer) = g1 + g2;
+      Rsq(tet, tt) = g1 + g2;
 
       % area
-      triA(tetiter, titer) = norm(cross(rho_1(:,tt), rho_2(:,tt)));
+      triA(tet, tt) = norm(cross(rho_1(:,tt), rho_2(:,tt)));
 
       % aspect ratio -- ratio of area to that of equilateral of same scale
-      triW(tetiter, titer) = 4*triA(tetiter, titer)/(sqrt(3)*...
-                               Rsq(tetiter, titer));
+      triW(tet, tt) = 4*triA(tet, tt)/(sqrt(3)*...
+                               Rsq(tet, tt));
 
       % shape factors
-      I1(tetiter, titer) = g1/Rsq(tetiter, titer);
-      I2(tetiter, titer) = g2/Rsq(tetiter, titer);
+      I1(tet, tt) = g1/Rsq(tet, tt);
+      I2(tet, tt) = g2/Rsq(tet, tt);
 
       % chi factor
-      chi(tetiter, titer) = 0.5*atan(2*dot(rho_1(:,tt), rho_2(:,tt))/...
+      chi(tet, tt) = 0.5*atan(2*dot(rho_1(:,tt), rho_2(:,tt))/...
                             (norm(rho_2(:,tt))^2 - norm(G*rho_1(:,tt))^2));
     end
   end
@@ -152,6 +145,5 @@ end
 fprintf(' ... Done!\n')
 
 % Average values over all triads (dim=2)
-time = ts:dt:te;
 save('triad_stats.mat', 'avgI1', 'avgI2', 'avgChi', 'avgRsq', 'avgtriA',...
      'avgtriW', 'r0', 'time', 'dom')
