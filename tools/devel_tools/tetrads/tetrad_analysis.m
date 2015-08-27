@@ -115,6 +115,9 @@ for rr = 1:length(r0)
       %gv1 = eigVec(:,1);
       %gv2 = eigVec(:,2);
       %gv3 = eigVec(:,3);
+      if abs(g1) < 1e-5
+        g1 = 1e-5;
+      end
       if (g1 < 0 | g2 < 0 | g3 < 0)
         G
         Gmom
@@ -136,16 +139,16 @@ for rr = 1:length(r0)
       Rsq(tet,tt) = g1 + g2 + g3;
 
       % volume
-      %Vol(tet,tt) = (g1*g2*g3)^(1/2)/3;
+      Vol(tet,tt) = (g1*g2*g3)^(1/2)/3;
 
       % shape factors
-      %I1(tet,tt) = g1/Rsq(tet,tt);
-      %I2(tet,tt) = g2/Rsq(tet,tt);
-      %I3(tet,tt) = g3/Rsq(tet,tt);
+      I1(tet,tt) = g1/Rsq(tet,tt);
+      I2(tet,tt) = g2/Rsq(tet,tt);
+      I3(tet,tt) = g3/Rsq(tet,tt);
 
       % lambda factor
-      %Lambda(tet,tt) = ...
-      %  Vol(tet,tt)^(2/3)./Rsq(tet,tt);
+      Lambda(tet,tt) = ...
+        Vol(tet,tt)^(2/3)./Rsq(tet,tt);
 
       % angle between g and k
       %theta1(rr,tet,tt) = acos(dot(g1, k1)/(norm(g1)*norm(k1)));
@@ -158,27 +161,27 @@ for rr = 1:length(r0)
       %kappa3(tet,tt) = k3;
 
       % Coarse grained velocity gradient tensor
-      M = G.^(-1) * W - eye(3)*trace(inv(G)*W)./3;
-      S = 0.5*(M + transpose(M));
-      O = 0.5*(M - transpose(M));
+      %M = G.^(-1) * W - eye(3)*trace(inv(G)*W)./3;
+      %S = 0.5*(M + transpose(M));
+      %O = 0.5*(M - transpose(M));
       % tensor dot product Oij Oij
-      s(tet,tt) = 2*sum(sum(O.*O));
+      %s(tet,tt) = 2*sum(sum(O.*O));
 
       % Invariants
-      P(tet,tt) = -trace(M);
-      Q(tet,tt) = 0.5*(trace(M)^2 - trace(M*M));
-      R(tet,tt) = -det(M);
+      %P(tet,tt) = -trace(M);
+      %Q(tet,tt) = 0.5*(trace(M)^2 - trace(M*M));
+      %R(tet,tt) = -det(M);
 
     end
   end
 
   % average over all tetrads
-  %avgRsq(rr,:) = mean(Rsq, 1);
-  %avgVol(rr,:) = mean(Vol, 1);
-  %avgI1(rr,:) = mean(I1, 1);
-  %avgI2(rr,:) = mean(I2, 1);
-  %avgI3(rr,:) = mean(I3, 1);
-  %avgLambda(rr,:) = mean(Lambda, 1);
+  avgRsq(rr,:) = mean(Rsq, 1);
+  avgVol(rr,:) = mean(Vol, 1);
+  avgI1(rr,:) = mean(I1, 1);
+  avgI2(rr,:) = mean(I2, 1);
+  avgI3(rr,:) = mean(I3, 1);
+  avgLambda(rr,:) = mean(Lambda, 1);
   %avgTheta1(rr,:) = mean(theta1, 1);
   %avgTheta2(rr,:) = mean(theta2, 1);
   %avgTheta3(rr,:) = mean(theta3, 1);
@@ -190,30 +193,24 @@ for rr = 1:length(r0)
   %theta2_percent(rr,:) = numel(theta2(theta2 < pi/6))/numel(theta2);
   %theta3_percent(rr,:) = numel(theta3(theta3 < pi/6))/numel(theta3);
   % TODO: save M to get sym / anti sym parts
-  invariants.(['r0_' num2str(r0(rr))]).s = s;
-  invariants.(['r0_' num2str(r0(rr))]).P = P;
-  invariants.(['r0_' num2str(r0(rr))]).Q = Q;
-  invariants.(['r0_' num2str(r0(rr))]).R = R;
-  invariants.(['r0_' num2str(r0(rr))]).Rsq = Rsq;
+  %invariants.(['r0_' num2str(r0(rr))]).s = s;
+  %invariants.(['r0_' num2str(r0(rr))]).P = P;
+  %invariants.(['r0_' num2str(r0(rr))]).Q = Q;
+  %invariants.(['r0_' num2str(r0(rr))]).R = R;
+  %invariants.(['r0_' num2str(r0(rr))]).Rsq = Rsq;
 
-  %clearvars Rsq Vol I1 I2 I3 Lambda;
+  clearvars Rsq Vol I1 I2 I3 Lambda;
   %clearvars kappa1 kappa2 kappa3;
   %clearvars theta1 theta2 theta3; 
-  clearvars M P Q R s Rsq;
+  %clearvars M P Q R s Rsq;
 end
 fprintf(' ... Done!\n')
 
 % Save tetrad average values
-%save('tetrad_stats.mat', ... 
-%      'avgI1', 'avgI2', 'avgI3', 'avgLambda', 'avgRsq', 'avgVol', ...
+save('tetrad_stats.mat', ... 
+      'avgI1', 'avgI2', 'avgI3', 'avgLambda', 'avgRsq', 'avgVol', ...
+      'r0', 'time', 'dom')
 %      'avgTheta1', 'avgTheta2', 'avgTheta3', 'avgK1', 'avgK2', 'avgK3',...
 %      'theta1_percent', 'theta2_percent', 'theta3_percent', ...
 %      'P', 'Q', 'R',... 
-%      'r0', 'time', 'dom')
-save('invariants.mat', 'invariants')
-
-
-% 4 - 869
-% 6 - 706
-% 8 - 488
-%10 - 386
+%save('invariants.mat', 'invariants')

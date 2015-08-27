@@ -15,7 +15,7 @@ fprintf('Initializing... \n');
 
 % go through options
 if nargin == 4
-  switch vargin
+  switch options
     case 'append'
       % append data to pre-existing file
       fprintf('\t''append'' option enabled\n');
