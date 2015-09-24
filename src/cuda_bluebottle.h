@@ -2116,8 +2116,10 @@ __global__ void init(int *vector, int N, int val);
   *   bin_fill<<<>>>()
   * USAGE
   */
+//__global__ void bin_fill(int *partInd, int *partBin, int nparts,
+//                  part_struct *parts, dom_struct *binDom, BC bc);
 __global__ void bin_fill(int *partInd, int *partBin, int nparts,
-                  part_struct *parts, dom_struct *binDom, BC bc);
+                  part_struct *parts, BC bc);
 /*
  * FUNCTION
  *  fill the partInd and partBin arrays with locations
@@ -2137,7 +2139,7 @@ __global__ void bin_fill(int *partInd, int *partBin, int nparts,
   * USAGE
   */
 __global__ void bin_partCount(int *binCount, int *binStart, int *binEnd,
-                              dom_struct *binDom, BC bc, int nBins);
+                              /*dom_struct *binDom,*/ BC bc, int nBins);
 /*
  * FUNCTION
  *  counts the number of particles per bin and bin stencil
@@ -2173,9 +2175,12 @@ __global__ void bin_start(int *binStart, int *binEnd, int *partBin, int nparts);
  *  collision_parts<<<>>>()
  * USAGE
  */
+//__global__ void collision_parts(part_struct *parts, int nparts,
+//  dom_struct *dom, real eps, real mu, BC bc, int *binStart, int *binEnd,
+//  int *partBin, int *partInd, /*dom_struct *binDom,*/ int interactionLength);
 __global__ void collision_parts(part_struct *parts, int nparts,
   dom_struct *dom, real eps, real mu, BC bc, int *binStart, int *binEnd,
-  int *partBin, int *partInd, dom_struct *binDom, int interactionLength);
+  int *partBin, int *partInd, int interactionLength);
 /*
  * FUNCTION
  *  Calculate collision forcing between particle i and all other particles.

@@ -37,7 +37,7 @@ real interactionLength;
 part_struct *parts;
 part_struct **_parts;
 dom_struct binDom;
-dom_struct *_binDom;
+// dom_struct *_binDom;
 int coeff_stride;
 real *pnm_re;
 real *pnm_im;

@@ -31,6 +31,8 @@
 #include "cuda_particle.h"
 #include "entrySearch.h"
 
+__device__ __constant__ dom_struct _cbinDom;
+
 extern "C"
 void cuda_dom_malloc(void)
 {
@@ -459,6 +461,8 @@ void cuda_dom_push(void)
       sizeof(real) * dom[dev].Gfy.s3b, cudaMemcpyHostToDevice));
     (cudaMemcpy(_conv_w[dev], conv_ww,
       sizeof(real) * dom[dev].Gfz.s3b, cudaMemcpyHostToDevice));
+
+    cudaMemcpyToSymbol(&_cbinDom, &binDom, sizeof(dom_struct));
 
     // free host subdomain working arrays
     free(pp0);
@@ -3695,6 +3699,27 @@ void cuda_compute_forcing(real *pid_int, real *pid_back, real Kp, real Ki,
         gradP.z = gradP.z
           + (Kp*acc_z + Ki*(*pid_int)/ttime + (Kd)*(acc_z-*pid_back))*rho_avg;
         *pid_back = acc_z;
+        
+        // hack to write pressure to file
+        char path[FILE_NAME_SIZE] = "";
+        sprintf(path, "%s/gradP", ROOT_DIR);
+        FILE *gradPout = fopen(path, "r+");
+        if (gradPout == NULL) {  // create it
+          gradPout = fopen(path, "w"); 
+          if (gradPout == NULL) { // error check 
+            fprintf(stderr, "Could not open file gradP\n");
+            exit(EXIT_FAILURE);
+          }
+          fprintf(gradPout, "time,gradPz");
+          fclose(gradPout);
+          gradPout = fopen(path, "r+");
+        }
+        // move to end of file and write
+        fseek(gradPout, 0, SEEK_END);
+        fprintf(gradPout, "%e,%e\n", ttime, gradP.z);
+        fclose(gradPout);
+        // end hack to write pressure to file
+        
       }
     }
     forcing_add_x_const<<<numBlocks_x, dimBlocks_x>>>(-gradP.x / rho_f,
@@ -4237,7 +4262,7 @@ void cuda_move_parts_sub()
         gpumem += nparts*sizeof(int);
         gpumem += nparts*sizeof(int);
         bin_fill<<<numBlocks, dimBlocks>>>(_partInd, _partBin, nparts,
-          _parts[dev], _binDom, bc);
+          _parts[dev], /*_binDom,*/ bc);
 
         /* sort by bin */
         thrust::device_ptr<int> ptr_partBin(_partBin);
@@ -4271,7 +4296,7 @@ void cuda_move_parts_sub()
         // launch a thread per particle to calc collision
         collision_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts,
          _dom[dev], eps, mu, bc, _binStart, _binEnd, _partBin, _partInd, 
-         _binDom, interactionLength);
+         /*_binDom,*/ interactionLength);
 
         spring_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts);
         collision_walls<<<numBlocks, dimBlocks>>>(_dom[dev], _parts[dev],
@@ -4283,7 +4308,7 @@ void cuda_move_parts_sub()
         
         collision_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts,
          _dom[dev], eps, mu, bc, _binStart, _binEnd, _partBin, _partInd, 
-         _binDom, interactionLength);
+         /*_binDom,*/ interactionLength);
 
         spring_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts);
         collision_walls<<<numBlocks, dimBlocks>>>(_dom[dev], _parts[dev],
@@ -4354,8 +4379,10 @@ void cuda_move_parts()
         (cudaMalloc((void**) &_partBin, nparts*sizeof(int)));
         gpumem += nparts*sizeof(int);
         gpumem += nparts*sizeof(int);
+        //bin_fill<<<numBlocks, dimBlocks>>>(_partInd, _partBin, nparts,
+        //  _parts[dev], _binDom, bc);
         bin_fill<<<numBlocks, dimBlocks>>>(_partInd, _partBin, nparts,
-          _parts[dev], _binDom, bc);
+          _parts[dev], bc);
 
         /* sort by bin */
         thrust::device_ptr<int> ptr_partBin(_partBin);
@@ -4389,7 +4416,7 @@ void cuda_move_parts()
         // launch a thread per particle to calc collision
         collision_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts,
          _dom[dev], eps, mu, bc, _binStart, _binEnd, _partBin, _partInd, 
-         _binDom, interactionLength);
+         /*_binDom,*/ interactionLength);
 
         spring_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts);
         collision_walls<<<numBlocks, dimBlocks>>>(_dom[dev], _parts[dev],
@@ -4401,7 +4428,8 @@ void cuda_move_parts()
         
         collision_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts,
          _dom[dev], eps, mu, bc, _binStart, _binEnd, _partBin, _partInd, 
-         _binDom, interactionLength);
+         interactionLength);
+         ///*_binDom,*/ interactionLength);
 
         spring_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts);
         collision_walls<<<numBlocks, dimBlocks>>>(_dom[dev], _parts[dev],
