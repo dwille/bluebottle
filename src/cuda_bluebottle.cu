@@ -3695,6 +3695,27 @@ void cuda_compute_forcing(real *pid_int, real *pid_back, real Kp, real Ki,
         gradP.z = gradP.z
           + (Kp*acc_z + Ki*(*pid_int)/ttime + (Kd)*(acc_z-*pid_back))*rho_avg;
         *pid_back = acc_z;
+
+        // hack to write pressure to file
+        char path[FILE_NAME_SIZE] = "";
+        sprintf(path, "%s/gradP", ROOT_DIR);
+        FILE *gradPout = fopen(path, "r+");
+        if (gradPout == NULL) {  // create it
+          gradPout = fopen(path, "w"); 
+          if (gradPout == NULL) { // error check 
+            fprintf(stderr, "Could not open file gradP\n");
+            exit(EXIT_FAILURE);
+          }
+          fprintf(gradPout, "time,gradPz");
+          fclose(gradPout);
+          gradPout = fopen(path, "r+");
+        }
+        // move to end of file and write
+        fseek(gradPout, 0, SEEK_END);
+        fprintf(gradPout, "%e,%e\n", ttime, gradP.z);
+        fclose(gradPout);
+        // end hack to write pressure to file
+
       }
     }
     forcing_add_x_const<<<numBlocks_x, dimBlocks_x>>>(-gradP.x / rho_f,
