@@ -21,6 +21,7 @@
  ******************************************************************************/
 
 #include "cuda_particle.h"
+#include <curand_kernel.h>
 
 __global__ void reset_phase(int *phase, dom_struct *dom)
 {
@@ -1092,6 +1093,10 @@ __device__ real Pnm(int n, int m, real theta)
 
 __device__ void xyz2rtp(real x, real y, real z, real *r, real *theta, real *phi)
 {
+  unsigned int seed = threadIdx.x + blockIdx.x*blockDim.x;
+  curandState s;
+  curand_init(seed, 0, 0, &s);
+
   real XY = x*x + y*y;
   real XYZ = XY + z*z;
   // We calculate the coefficients everywhere in space. If a particle is
@@ -1102,8 +1107,13 @@ __device__ void xyz2rtp(real x, real y, real z, real *r, real *theta, real *phi)
   *r = sqrt(XYZ);
   *theta = acos(z / *r);
   // Note that XY cannot be set equal to one, because the values are used.
-  if(XY >= 0 && XY < DIV_ST) XY = DIV_ST;
+  if(XY > 0 && XY < DIV_ST) XY = DIV_ST;
   else if(XY < 0 && XY > -DIV_ST) XY = -DIV_ST;
+  else if(XY == 0) { 
+    real flip = -1. + 2.*curand_uniform(&s);
+    XY = DIV_ST*(flip >= 0) - DIV_ST*(flip < 0);
+  }
+
   *phi = acos(x / sqrt(XY));
   if(y < 0.) *phi = 2.*PI - *phi;
 }
@@ -1153,11 +1163,19 @@ __device__ real X_phin(int n, real theta, real phi,
 __device__ real Y_pn(int n, real theta, real phi,
   real *pnm_re, real *pnm_im, int pp, int stride)
 {
+  unsigned int seed = threadIdx.x + blockIdx.x*blockDim.x;
+  curandState s;
+  curand_init(seed, 0, 0, &s);
+
   int coeff = 0;
   real ct = cos(theta);
   real st = sin(theta);
-  if(st >= 0 && st < DIV_ST) st = DIV_ST;
+  if(st > 0 && st < DIV_ST) st = DIV_ST;
   else if(st < 0 && st > -DIV_ST) st = -DIV_ST;
+  else if(st == 0) { 
+    real flip = -1. + 2.*curand_uniform(&s);
+    st = DIV_ST*(flip >= 0) - DIV_ST*(flip < 0);
+  }
 
   for(int j = 0; j < n; j++) coeff += j+1;
 
@@ -1182,11 +1200,19 @@ __device__ real Y_pn(int n, real theta, real phi,
 __device__ real Y_phin(int n, real theta, real phi,
   real *phinm_re, real *phinm_im, int pp, int stride)
 {
+  unsigned int seed = threadIdx.x + blockIdx.x*blockDim.x;
+  curandState s;
+  curand_init(seed, 0, 0, &s);
+
   int coeff = 0;
   real ct = cos(theta);
   real st = sin(theta);
-  if(st >= 0 && st < DIV_ST) st = DIV_ST;
+  if(st > 0 && st < DIV_ST) st = DIV_ST;
   else if(st < 0 && st > -DIV_ST) st = -DIV_ST;
+  else if(st == 0) { 
+    real flip = -1. + 2.*curand_uniform(&s);
+    st = DIV_ST*(flip >= 0) - DIV_ST*(flip < 0);
+  }
 
   for(int j = 0; j < n; j++) coeff += j+1;
 
@@ -1211,11 +1237,19 @@ __device__ real Y_phin(int n, real theta, real phi,
 __device__ real Y_chin(int n, real theta, real phi,
   real *chinm_re, real *chinm_im, int pp, int stride)
 {
+  unsigned int seed = threadIdx.x + blockIdx.x*blockDim.x;
+  curandState s;
+  curand_init(seed, 0, 0, &s);
+
   int coeff = 0;
   real ct = cos(theta);
   real st = sin(theta);
-  if(st >= 0 && st < DIV_ST) st = DIV_ST;
+  if(st > 0 && st < DIV_ST) st = DIV_ST;
   else if(st < 0 && st > -DIV_ST) st = -DIV_ST;
+  else if(st == 0) { 
+    real flip = -1. + 2.*curand_uniform(&s);
+    st = DIV_ST*(flip >= 0) - DIV_ST*(flip < 0);
+  }
 
   for(int j = 0; j < n; j++) coeff += j+1;
 
@@ -1240,10 +1274,18 @@ __device__ real Y_chin(int n, real theta, real phi,
 __device__ real Z_pn(int n, real theta, real phi,
   real *pnm_re, real *pnm_im, int pp, int stride)
 {
+  unsigned int seed = threadIdx.x + blockIdx.x*blockDim.x;
+  curandState s;
+  curand_init(seed, 0, 0, &s);
+
   int coeff = 0;
   real st = sin(theta);
-  if(st >= 0 && st < DIV_ST) st = DIV_ST;
+  if(st > 0 && st < DIV_ST) st = DIV_ST;
   else if(st < 0 && st > -DIV_ST) st = -DIV_ST;
+  else if(st == 0) { 
+    real flip = -1. + 2.*curand_uniform(&s);
+    st = DIV_ST*(flip >= 0) - DIV_ST*(flip < 0);
+  }
 
   for(int j = 0; j < n; j++) coeff += j+1;
 
@@ -1265,10 +1307,18 @@ __device__ real Z_pn(int n, real theta, real phi,
 __device__ real Z_phin(int n, real theta, real phi,
   real *phinm_re, real *phinm_im, int pp, int stride)
 {
+  unsigned int seed = threadIdx.x + blockIdx.x*blockDim.x;
+  curandState s;
+  curand_init(seed, 0, 0, &s);
+
   int coeff = 0;
   real st = sin(theta);
-  if(st >= 0 && st < DIV_ST) st = DIV_ST;
+  if(st > 0 && st < DIV_ST) st = DIV_ST;
   else if(st < 0 && st > -DIV_ST) st = -DIV_ST;
+  else if(st == 0) { 
+    real flip = -1. + 2.*curand_uniform(&s);
+    st = DIV_ST*(flip >= 0) - DIV_ST*(flip < 0);
+  }
 
   for(int j = 0; j < n; j++) coeff += j+1;
 
@@ -1290,10 +1340,18 @@ __device__ real Z_phin(int n, real theta, real phi,
 __device__ real Z_chin(int n, real theta, real phi,
   real *chinm_re, real *chinm_im, int pp, int stride)
 {
+  unsigned int seed = threadIdx.x + blockIdx.x*blockDim.x;
+  curandState s;
+  curand_init(seed, 0, 0, &s);
+
   int coeff = 0;
   real st = sin(theta);
-  if(st >= 0 && st < DIV_ST) st = DIV_ST;
+  if(st > 0 && st < DIV_ST) st = DIV_ST;
   else if(st < 0 && st > -DIV_ST) st = -DIV_ST;
+  else if(st == 0) { 
+    real flip = -1. + 2.*curand_uniform(&s);
+    st = DIV_ST*(flip >= 0) - DIV_ST*(flip < 0);
+  }
 
   for(int j = 0; j < n; j++) coeff += j+1;
 
@@ -1376,11 +1434,19 @@ __device__ void lamb_gradP(int order, real a, real r, real theta, real phi,
   real mu, real nu, real *pnm_re, real *pnm_im, real *phinm_re, real *phinm_im,
   int p_ind, int stride, real *gPx, real *gPy, real *gPz)
 {
+  unsigned int seed = threadIdx.x + blockIdx.x*blockDim.x;
+  curandState s;
+  curand_init(seed, 0, 0, &s);
+
   real ar = a / r;
   real ra = r / a;
   real st = sin(theta);
-  if(st >= 0 && st < DIV_ST) st = DIV_ST;
+  if(st > 0 && st < DIV_ST) st = DIV_ST;
   else if(st < 0 && st > -DIV_ST) st = -DIV_ST;
+  else if(st == 0) { 
+    real flip = -1. + 2.*curand_uniform(&s);
+    st = DIV_ST*(flip >= 0) - DIV_ST*(flip < 0);
+  }
   
   real pr = 0;
   real pt = 1./r * Y_pn(0, theta, phi, pnm_re, pnm_im, p_ind, stride);
