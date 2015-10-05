@@ -22,6 +22,13 @@
 
 #include "cuda_bluebottle.h"
 
+__constant__ dom_struct _cbinDom;
+
+void copyBinDom(dom_struct *binDom)
+{
+  cudaMemcpyToSymbol(_cbinDom, binDom, sizeof(dom_struct));
+}
+
 // pressure; west; periodic
 __global__ void BC_p_W_P(real *p, dom_struct *dom)
 {
@@ -2399,7 +2406,8 @@ __global__ void init(int *vector, int N, int val)
 }
 
 __global__ void bin_fill(int *partInd, int *partBin, int nparts,
-                  part_struct *parts, dom_struct *binDom, BC bc)
+                  part_struct *parts, BC bc)
+                  //part_struct *parts, dom_struct *binDom, BC bc)
 {
   int pp = threadIdx.x + blockIdx.x*blockDim.x;
 
@@ -2408,10 +2416,10 @@ __global__ void bin_fill(int *partInd, int *partBin, int nparts,
 
   // find the correct bin index for each part and store it
   if (pp < nparts) {
-    ibin = floor((parts[pp].x - binDom->xs)/binDom->dx);
-    jbin = floor((parts[pp].y - binDom->ys)/binDom->dy);
-    kbin = floor((parts[pp].z - binDom->zs)/binDom->dz);
-    c = ibin + jbin*binDom->Gcc.s1 + kbin*binDom->Gcc.s2;
+    ibin = floor((parts[pp].x - _cbinDom.xs)/_cbinDom.dx);
+    jbin = floor((parts[pp].y - _cbinDom.ys)/_cbinDom.dy);
+    kbin = floor((parts[pp].z - _cbinDom.zs)/_cbinDom.dz);
+    c = ibin + jbin*_cbinDom.Gcc.s1 + kbin*_cbinDom.Gcc.s2;
 
     partInd[pp] = pp;         // index of particle
     partBin[pp] = c;          // bin index
@@ -2478,7 +2486,8 @@ __global__ void bin_start(int *binStart, int *binEnd, int *partBin, int nparts)
 
 __global__ void collision_parts(part_struct *parts, int nparts,
   dom_struct *dom, real eps, real mu, BC bc, int *binStart, int *binEnd,
-  int *partBin, int *partInd, dom_struct *binDom, int interactionLength)
+  int *partBin, int *partInd, int interactionLength)
+  //int *partBin, int *partInd, dom_struct *binDom, int interactionLength)
 {
   int index = threadIdx.x + blockIdx.x*blockDim.x;
 
@@ -2487,9 +2496,9 @@ __global__ void collision_parts(part_struct *parts, int nparts,
     int i = partInd[index];
     int bin = partBin[index];
 
-    int kbin = floorf(bin/binDom->Gcc.s2);
-    int jbin = floorf((bin - kbin*binDom->Gcc.s2)/binDom->Gcc.s1);
-    int ibin = bin - kbin*binDom->Gcc.s2 - jbin*binDom->Gcc.s1;
+    int kbin = floorf(bin/_cbinDom.Gcc.s2);
+    int jbin = floorf((bin - kbin*_cbinDom.Gcc.s2)/_cbinDom.Gcc.s1);
+    int ibin = bin - kbin*_cbinDom.Gcc.s2 - jbin*_cbinDom.Gcc.s1;
 
     int l, m, n;                          // adjacent bin iterators
     int target, j;                        // target indices
@@ -2498,17 +2507,17 @@ __global__ void collision_parts(part_struct *parts, int nparts,
 
     // predefine face locations 
     // -1, -2 due to local vs global indexing and defiinition of dom_struct
-    int fW = binDom->Gcc.is - 1;
-    int fE = binDom->Gcc.ie - 2;
-    int fS = binDom->Gcc.js - 1;
-    int fN = binDom->Gcc.je - 2;
-    int fB = binDom->Gcc.ks - 1;
-    int fT = binDom->Gcc.ke - 2;
+    int fW = _cbinDom.Gcc.is - 1;
+    int fE = _cbinDom.Gcc.ie - 2;
+    int fS = _cbinDom.Gcc.js - 1;
+    int fN = _cbinDom.Gcc.je - 2;
+    int fB = _cbinDom.Gcc.ks - 1;
+    int fT = _cbinDom.Gcc.ke - 2;
 
     // size checks
-    int xnBin = (binDom->xn > 2);
-    int ynBin = (binDom->yn > 2);
-    int znBin = (binDom->zn > 2);
+    int xnBin = (_cbinDom.xn > 2);
+    int ynBin = (_cbinDom.yn > 2);
+    int znBin = (_cbinDom.zn > 2);
 
     // loop over adjacent bins and take care of periodic conditions 
     for (n = -1; n <= 1; n++) {
@@ -2521,12 +2530,12 @@ __global__ void collision_parts(part_struct *parts, int nparts,
         continue;
       // if on a face and periodic, flip to other side
       } else if (n == -1 && kbin == fB && bc.uB == PERIODIC) {
-        kStride = fT*binDom->Gcc.s2;
+        kStride = fT*_cbinDom.Gcc.s2;
       } else if (n == 1 && kbin == fT && bc.uT == PERIODIC) {
-        kStride = fB*binDom->Gcc.s2;
+        kStride = fB*_cbinDom.Gcc.s2;
       // else, we are in the middle, do nothing special
       } else {
-        kStride = (kbin + n)*binDom->Gcc.s2;
+        kStride = (kbin + n)*_cbinDom.Gcc.s2;
       }
 
       for (m = -1; m <= 1; m++) {
@@ -2536,11 +2545,11 @@ __global__ void collision_parts(part_struct *parts, int nparts,
             (m == 1 && jbin == fN && bc.uN == PERIODIC && ynBin == 0)) {
           continue;
         } else if (m == -1 && jbin == fS && bc.uS == PERIODIC) {
-          jStride = fN*binDom->Gcc.s1;  
+          jStride = fN*_cbinDom.Gcc.s1;  
         } else if (m == 1 && jbin == fN && bc.uN == PERIODIC) {
-          jStride = fS*binDom->Gcc.s1;
+          jStride = fS*_cbinDom.Gcc.s1;
         } else {
-          jStride = (jbin + m)*binDom->Gcc.s1;
+          jStride = (jbin + m)*_cbinDom.Gcc.s1;
         }
 
         for (l = -1; l <= 1; l++) {

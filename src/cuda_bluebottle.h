@@ -37,6 +37,8 @@ extern "C"
 #include "particle.h"
 }
 
+void copyBinDom(dom_struct *binDom);
+
 /****f* cuda_bluebottle_kernel/BC_p_W_P<<<>>>()
  * NAME
  *  BC_p_W_P<<<>>>()

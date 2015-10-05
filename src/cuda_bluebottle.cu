@@ -31,8 +31,6 @@
 #include "cuda_particle.h"
 #include "entrySearch.h"
 
-__device__ __constant__ dom_struct _cbinDom;
-
 extern "C"
 void cuda_dom_malloc(void)
 {
@@ -264,6 +262,7 @@ void cuda_dom_malloc(void)
 extern "C"
 void cuda_dom_push(void)
 {
+  copyBinDom(&binDom);
   // copy host data to device
   #pragma omp parallel num_threads(nsubdom)
   {
@@ -461,8 +460,6 @@ void cuda_dom_push(void)
       sizeof(real) * dom[dev].Gfy.s3b, cudaMemcpyHostToDevice));
     (cudaMemcpy(_conv_w[dev], conv_ww,
       sizeof(real) * dom[dev].Gfz.s3b, cudaMemcpyHostToDevice));
-
-    cudaMemcpyToSymbol(&_cbinDom, &binDom, sizeof(dom_struct));
 
     // free host subdomain working arrays
     free(pp0);

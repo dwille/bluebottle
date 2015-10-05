@@ -160,9 +160,6 @@ void cuda_part_malloc(void)
     (cudaMalloc((void**) &(_flag_w[dev]),
       sizeof(int) * dom[dev].Gfz.s3b));
     gpumem += sizeof(int) * dom[dev].Gfz.s3b;
-
-    //(cudaMalloc((void**) &(_binDom), sizeof(dom_struct)));
-    //gpumem += sizeof(dom_struct);
   }
 }
 
@@ -224,9 +221,6 @@ void cuda_part_push(void)
       cudaMemcpyHostToDevice));
     (cudaMemcpy(_flag_w[0], flag_w, sizeof(int) * dom[0].Gfz.s3b,
       cudaMemcpyHostToDevice));
-
-    //(cudaMemcpy(_binDom, &binDom, sizeof(dom_struct),
-    //  cudaMemcpyHostToDevice));
   }
 }
 
@@ -325,7 +319,6 @@ void cuda_part_free(void)
     (cudaFree(_flag_v[dev]));
     (cudaFree(_flag_w[dev]));
   }
-    //(cudaFree(_binDom));
 
   free(_parts);
   free(_pnm_re);
