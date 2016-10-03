@@ -2194,7 +2194,7 @@ __global__ void bin_start(int *binStart, int *binEnd, int *partBin, int nparts);
 __global__ void collision_parts(part_struct *parts, int nparts,
   dom_struct *dom, real eps, real mu, real rho_f, real nu, BC bc, int *binStart,
   int *binEnd, int *partBin, int *partInd, dom_struct *binDom,
-  int interactionLengthRatio, real dt);
+  int interactionLengthRatio, real dt, int *ncoll); // XXX ncoll hack
 /*
  * FUNCTION
  *  Calculate collision forcing between particle i and all other particles.

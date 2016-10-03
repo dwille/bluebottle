@@ -3280,6 +3280,7 @@ void out_restart(void)
   fwrite(bc_plane_pos, sizeof(real), 9, rest);
 
   fwrite(parts, sizeof(part_struct), nparts, rest);
+  fwrite(ncoll, sizeof(int), nparts, rest); // XXX ncoll hack
 
   fwrite(&coeff_stride, sizeof(int), 1, rest);
 
@@ -3377,6 +3378,8 @@ void in_restart(void)
   fret = fread(bc_plane_pos, sizeof(real), 9, infile);
 
   fret = fread(parts, sizeof(part_struct), nparts, infile);
+  // XXX ncoll hack -- turned off at first
+  //fret = fread(ncoll, sizeof(long int), nparts, infile);
 
   fret = fread(&coeff_stride, sizeof(int), 1, infile);
 

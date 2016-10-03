@@ -325,6 +325,7 @@ typedef struct part_struct {
   //real tz;
   real e_dry;
   real coeff_fric;
+  //int ncoll;
 } part_struct;
 /*
  * PURPOSE
@@ -402,6 +403,7 @@ typedef struct part_struct {
  *  * coeff_fric -- coefficient of friction
  *  * St -- particle contact Stokes number list
  *  * iSt -- particle contact Stokes number indices
+ *  * ncoll -- number of collisions for the current particle
  ******
  */
 
@@ -414,6 +416,22 @@ extern int nparts;
 /*
  * PURPOSE
  *  Define the total number of particles in the domain.
+ ******
+ */
+
+/****v* particle/ncoll
+ * NAME
+ *  ncoll
+ * TYPE
+ */
+extern int *ncoll;
+extern int *_ncoll;
+/*
+ *
+ * PURPOSE
+ *  XXX Hack to output number of particle collisions
+ *  Should be done in part_struct, but if we need to read in a binary that
+ *  doesn't have the same part_struct, things won't work.
  ******
  */
 

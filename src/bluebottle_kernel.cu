@@ -2519,7 +2519,7 @@ __global__ void bin_start(int *binStart, int *binEnd, int *partBin, int nparts)
 __global__ void collision_parts(part_struct *parts, int nparts,
   dom_struct *dom, real eps, real mu, real rhof, real nu, BC bc, int *binStart,
   int *binEnd, int *partBin, int *partInd, dom_struct *binDom,
-  int interactionLengthRatio, real dt)
+  int interactionLengthRatio, real dt, int *ncoll) // XXX ncoll hack
 {
   int index = threadIdx.x + blockIdx.x*blockDim.x;
 
@@ -2814,9 +2814,17 @@ __global__ void collision_parts(part_struct *parts, int nparts,
                     while(parts[i].iSt[q] != -1) {
                       q++;
                     }
+                    // New contact -- set target index,  stokes number, ncoll
                     parts[i].iSt[q] = j;
                     parts[i].St[q] = 1./9.*parts[i].rho/rhof*2.*parts[i].r
                       *fabs(udotn)/nu;
+                    // check for overflow -- if it does, set it to zero
+                    // The analysis will have to check if ncoll decreases
+                    // between outputs
+                    //parts[i].ncoll = (parts[i].ncoll + 1)*
+                    //                (parts[i].ncoll < LONG_MAX);
+                    ncoll[i] = (ncoll[i] + 1) * (ncoll[i] < INT_MAX);
+                    printf("  %d collided with %d\n", i, j);
                   }
 
                   real Vx = -utx + 0.5*(ai + aj + h)*ocrossnx;

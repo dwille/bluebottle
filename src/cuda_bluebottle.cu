@@ -4407,7 +4407,7 @@ void cuda_move_parts_sub()
         // launch a thread per particle to calc collision
         collision_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts,
          _dom[dev], eps, mu, rho_f, nu, bc, _binStart, _binEnd, _partBin,
-          _partInd, _binDom, interactionLengthRatio, dt);
+          _partInd, _binDom, interactionLengthRatio, dt, _ncoll);
 
         spring_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts);
         collision_walls<<<numBlocks, dimBlocks>>>(_dom[dev], _parts[dev],
@@ -4419,7 +4419,7 @@ void cuda_move_parts_sub()
         
         collision_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts,
          _dom[dev], eps, mu, rho_f, nu, bc, _binStart, _binEnd, _partBin,
-          _partInd, _binDom, interactionLengthRatio, dt);
+          _partInd, _binDom, interactionLengthRatio, dt, _ncoll);
 
         spring_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts);
         collision_walls<<<numBlocks, dimBlocks>>>(_dom[dev], _parts[dev],
@@ -4525,7 +4525,7 @@ void cuda_move_parts()
         // launch a thread per particle to calc collision
         collision_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts,
          _dom[dev], eps, mu, rho_f, nu, bc, _binStart, _binEnd, _partBin,
-          _partInd, _binDom, interactionLengthRatio, dt);
+          _partInd, _binDom, interactionLengthRatio, dt, _ncoll);
 
         spring_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts);
         collision_walls<<<numBlocks, dimBlocks>>>(_dom[dev], _parts[dev],
@@ -4537,7 +4537,7 @@ void cuda_move_parts()
         
         collision_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts,
          _dom[dev], eps, mu, rho_f, nu, bc, _binStart, _binEnd, _partBin,
-          _partInd, _binDom, interactionLengthRatio, dt);
+          _partInd, _binDom, interactionLengthRatio, dt, _ncoll);
 
         spring_parts<<<numBlocks, dimBlocks>>>(_parts[dev], nparts);
         collision_walls<<<numBlocks, dimBlocks>>>(_dom[dev], _parts[dev],

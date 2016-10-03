@@ -27,6 +27,9 @@
 extern "C"
 void cuda_part_malloc(void)
 {
+  // ncoll hack XXX
+  _ncoll = (int*) malloc(nparts * sizeof(int));
+
   // allocate device memory on host
   _parts = (part_struct**) malloc(nsubdom * sizeof(part_struct*));
   cpumem += nsubdom * sizeof(part_struct*);
@@ -83,6 +86,9 @@ void cuda_part_malloc(void)
   {
     int dev = omp_get_thread_num();
     (cudaSetDevice(dev + dev_start));
+
+    // ncoll hack XXX
+    cudaMalloc((void**) &(_ncoll), sizeof(int) * nparts);
 
     (cudaMalloc((void**) &(_parts[dev]),
       sizeof(part_struct) * nparts));
@@ -175,6 +181,9 @@ void cuda_part_push(void)
     int dev = omp_get_thread_num();
     (cudaSetDevice(dev + dev_start));
 
+    // ncoll hack XXX
+    cudaMemcpy(_ncoll, ncoll, sizeof(int) * nparts,cudaMemcpyHostToDevice);
+
     (cudaMemcpy(_parts[dev], parts, sizeof(part_struct) * nparts,
       cudaMemcpyHostToDevice));
     (cudaMemcpy(_pnm_re[dev], pnm_re, sizeof(real) * coeff_stride
@@ -233,6 +242,9 @@ void cuda_part_push(void)
 extern "C"
 void cuda_part_pull(void)
 {
+  // ncoll hack XXX
+  cudaMemcpy(ncoll, _ncoll, sizeof(int) * nparts,cudaMemcpyDeviceToHost);
+
   // all devices have the same particle data for now, so just copy one of them
   (cudaMemcpy(parts, _parts[0], sizeof(part_struct) * nparts,
     cudaMemcpyDeviceToHost));
@@ -326,6 +338,9 @@ void cuda_part_free(void)
     (cudaFree(_flag_w[dev]));
   }
     (cudaFree(_binDom));
+
+  // ncoll hack XXX
+  cudaFree(_ncoll);
 
   free(_parts);
   free(_pnm_re);

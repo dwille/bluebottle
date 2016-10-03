@@ -916,6 +916,7 @@ void cgns_particles(real dtout)
     // cpumem += nparts * sizeof(int);
     real *a = malloc(nparts * sizeof(real));
     real *rho = malloc(nparts * sizeof(real));
+    //real *ncoll = malloc(nparts * sizeof(real));
     real *E = malloc(nparts * sizeof(real));
     real *sigma = malloc(nparts * sizeof(real));
     real *e_dry = malloc(nparts * sizeof(real));
@@ -1129,6 +1130,7 @@ void cgns_particles(real dtout)
       conn[i] = nparts-i;
       a[i] = parts[i].r;
       rho[i] = parts[i].rho;
+      //ncoll[i] = parts[i].ncoll;
       E[i] = parts[i].E;
       sigma[i] = parts[i].sigma;
       e_dry[i] = parts[i].e_dry;
@@ -1446,6 +1448,8 @@ void cgns_particles(real dtout)
     cg_sol_write(fn, bn, zn, "Solution", Vertex, &sn);
     cg_field_write(fn, bn, zn, sn, RealDouble, "Radius", a, &fnr);
     cg_field_write(fn, bn, zn, sn, RealDouble, "Density", rho, &fnr);
+    //cg_field_write(fn, bn, zn, sn, LongInteger, "NumberOfCollisions", ncoll, &fnr);
+    cg_field_write(fn, bn, zn, sn, Integer, "NumberOfCollisions", ncoll, &fnr);
     cg_field_write(fn, bn, zn, sn, RealDouble, "YoungsModulus", E, &fnr);
     cg_field_write(fn, bn, zn, sn, RealDouble, "PoissonsRatio", sigma, &fnr);
     cg_field_write(fn, bn, zn, sn, RealDouble, "DryCoeffRest", e_dry, &fnr);

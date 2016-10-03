@@ -32,6 +32,8 @@ int *flag_v;
 int **_flag_v;
 int *flag_w;
 int **_flag_w;
+int *ncoll; // XXX hack for now
+int *_ncoll; // XXX hack for now
 int nparts;
 real interactionLengthRatio;
 part_struct *parts;
@@ -309,6 +311,9 @@ int parts_init(void)
   cpumem += Dom.Gfz.s3b * sizeof(int);
   flags_reset();
 
+  // XXX HACK -- number of collisions
+  ncoll = (int*) malloc(nparts * sizeof(int));
+
   // build the particle cages
   for(i = 0; i < nparts; i++) init_cage(i);
 
@@ -469,6 +474,10 @@ int parts_init(void)
       parts[i].St[j] = 0.;
       parts[i].iSt[j] = -1;
     }
+
+    // initialize collision counter to zero
+    //parts[i].ncoll = 0;
+    ncoll[i] = 0;
 
     //parts[i].ty = 0;
     //parts[i].tz = 0;
@@ -792,4 +801,7 @@ void parts_clean(void)
   free(flag_u);
   free(flag_v);
   free(flag_w);
+
+  // XXX ncoll hack
+  free(ncoll);
 }
