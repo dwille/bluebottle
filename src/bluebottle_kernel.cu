@@ -2824,7 +2824,7 @@ __global__ void collision_parts(part_struct *parts, int nparts,
                     //parts[i].ncoll = (parts[i].ncoll + 1)*
                     //                (parts[i].ncoll < LONG_MAX);
                     ncoll[i] = (ncoll[i] + 1) * (ncoll[i] < INT_MAX);
-                    printf("  %d collided with %d\n", i, j);
+                    //printf("  %d collided with %d\n", i, j);
                   }
 
                   real Vx = -utx + 0.5*(ai + aj + h)*ocrossnx;
